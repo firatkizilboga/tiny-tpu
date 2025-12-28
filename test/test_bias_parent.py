@@ -38,7 +38,7 @@ BIAS_SCALAR_COL2 = 0.3  # constant bias for column 2
 async def test_bias_parent_4x2_staggered(dut):
     """test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -247,13 +247,13 @@ async def test_bias_parent_4x2_staggered(dut):
     col2_results = []
     
     for cycle_num in range(10):
-        if dut.bias_Z_valid_out_1.value.integer:
-            output_val = from_fixed(dut.bias_z_data_out_1.value.integer)
+        if int(dut.bias_Z_valid_out_1.value):
+            output_val = from_fixed(int(dut.bias_z_data_out_1.value))
             col1_results.append(output_val)
             print(f"cycle {cycle_num}: col1 output = {output_val:.5f}")
             
-        if dut.bias_Z_valid_out_2.value.integer:
-            output_val = from_fixed(dut.bias_z_data_out_2.value.integer)
+        if int(dut.bias_Z_valid_out_2.value):
+            output_val = from_fixed(int(dut.bias_z_data_out_2.value))
             col2_results.append(output_val)
             print(f"cycle {cycle_num}: col2 output = {output_val:.5f}")
             
@@ -290,7 +290,7 @@ async def test_bias_parent_4x2_staggered(dut):
 async def test_bias_parent_as_single_child(dut):
     """test case 2: use bias_parent as single bias_child interface (4 values)"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -361,8 +361,8 @@ async def test_bias_parent_as_single_child(dut):
     # collect outputs from column 1 only
     results = []
     for cycle_num in range(10):
-        if dut.bias_Z_valid_out_1.value.integer:
-            output_val = from_fixed(dut.bias_z_data_out_1.value.integer)
+        if int(dut.bias_Z_valid_out_1.value):
+            output_val = from_fixed(int(dut.bias_z_data_out_1.value))
             results.append(output_val)
             print(f"cycle {cycle_num}: output = {output_val:.5f}")
         await RisingEdge(dut.clk)
@@ -385,7 +385,7 @@ async def test_bias_parent_as_single_child(dut):
 async def test_bias_parent_invalid_inputs(dut):
     """test case 3: test bias_parent with invalid input combinations"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -406,8 +406,8 @@ async def test_bias_parent_invalid_inputs(dut):
     dut.bias_sys_valid_in_2.value = 0
     
     await RisingEdge(dut.clk)
-    # assert dut.bias_Z_valid_out_1.value.integer == 0, "col1 output should be invalid when only sys_valid_in is low"
-    # assert dut.bias_Z_valid_out_2.value.integer == 0, "col2 output should be invalid when only sys_valid_in is low"
+    # assert int(dut.bias_Z_valid_out_1.value) == 0, "col1 output should be invalid when only sys_valid_in is low"
+    # assert int(dut.bias_Z_valid_out_2.value) == 0, "col2 output should be invalid when only sys_valid_in is low"
     print("test case 1 passed: outputs invalid when sys_valid signals are low")
     
     # test case 2: both systolic array valid signals asserted
@@ -417,8 +417,8 @@ async def test_bias_parent_invalid_inputs(dut):
     dut.bias_sys_valid_in_2.value = 1
     
     await RisingEdge(dut.clk)
-    # assert dut.bias_Z_valid_out_1.value.integer == 1, "col1 output should be valid when bias_sys_valid_in is asserted"
-    # assert dut.bias_Z_valid_out_2.value.integer == 1, "col2 output should be valid when bias_sys_valid_in is asserted"
+    # assert int(dut.bias_Z_valid_out_1.value) == 1, "col1 output should be valid when bias_sys_valid_in is asserted"
+    # assert int(dut.bias_Z_valid_out_2.value) == 1, "col2 output should be valid when bias_sys_valid_in is asserted"
     print("test case 2 passed: outputs valid when systolic array valid signals asserted")
     
     # test case 3: only column 1 valid
@@ -426,8 +426,8 @@ async def test_bias_parent_invalid_inputs(dut):
     dut.bias_sys_valid_in_2.value = 0
     
     await RisingEdge(dut.clk)
-    # assert dut.bias_Z_valid_out_1.value.integer == 1, "col1 output should be valid when bias_sys_valid_in_1 is high"
-    # assert dut.bias_Z_valid_out_2.value.integer == 0, "col2 output should be invalid when bias_sys_valid_in_2 is low"
+    # assert int(dut.bias_Z_valid_out_1.value) == 1, "col1 output should be valid when bias_sys_valid_in_1 is high"
+    # assert int(dut.bias_Z_valid_out_2.value) == 0, "col2 output should be invalid when bias_sys_valid_in_2 is low"
     print("test case 3 passed: col1 valid, col2 invalid as expected")
     
     # test case 4: only column 2 valid
@@ -435,8 +435,8 @@ async def test_bias_parent_invalid_inputs(dut):
     dut.bias_sys_valid_in_2.value = 1
     
     await RisingEdge(dut.clk)
-    # assert dut.bias_Z_valid_out_1.value.integer == 0, "col1 output should be invalid when bias_sys_valid_in_1 is low"
-    # assert dut.bias_Z_valid_out_2.value.integer == 1, "col2 output should be valid when bias_sys_valid_in_2 is high"
+    # assert int(dut.bias_Z_valid_out_1.value) == 0, "col1 output should be invalid when bias_sys_valid_in_1 is low"
+    # assert int(dut.bias_Z_valid_out_2.value) == 1, "col2 output should be valid when bias_sys_valid_in_2 is high"
     print("test case 4 passed: col1 invalid, col2 valid as expected")
     
     print("invalid input tests passed!")

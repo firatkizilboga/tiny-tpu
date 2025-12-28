@@ -35,7 +35,7 @@ Y_VALUES = [0.0, 1.0, 1.0, 0.0]
 async def test_loss_parent_4x2_staggered(dut):
     """test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -109,13 +109,13 @@ async def test_loss_parent_4x2_staggered(dut):
     col2_results = []
     
     for cycle_num in range(10):
-        if dut.valid_1_out.value.integer:
-            gradient_val = from_fixed(dut.gradient_1_out.value.integer)
+        if int(dut.valid_1_out.value):
+            gradient_val = from_fixed(int(dut.gradient_1_out.value))
             col1_results.append(gradient_val)
             print(f"cycle {cycle_num}: col1 output = {gradient_val:.5f}")
             
-        if dut.valid_2_out.value.integer:
-            gradient_val = from_fixed(dut.gradient_2_out.value.integer)
+        if int(dut.valid_2_out.value):
+            gradient_val = from_fixed(int(dut.gradient_2_out.value))
             col2_results.append(gradient_val)
             print(f"cycle {cycle_num}: col2 output = {gradient_val:.5f}")
             
@@ -150,7 +150,7 @@ async def test_loss_parent_4x2_staggered(dut):
 async def test_loss_parent_as_single_child(dut):
     """test case 2: use loss_parent as single loss_child interface (4 values)"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -187,8 +187,8 @@ async def test_loss_parent_as_single_child(dut):
     # collect outputs from column 1 only
     results = []
     for cycle_num in range(10):
-        if dut.valid_1_out.value.integer:
-            gradient_val = from_fixed(dut.gradient_1_out.value.integer)
+        if int(dut.valid_1_out.value):
+            gradient_val = from_fixed(int(dut.gradient_1_out.value))
             results.append(gradient_val)
             print(f"cycle {cycle_num}: output = {gradient_val:.5f}")
         await RisingEdge(dut.clk)

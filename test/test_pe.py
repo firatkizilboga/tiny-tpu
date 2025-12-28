@@ -14,7 +14,7 @@ def from_fixed(val, frac_bits=8):
 async def test_pe(dut):
     """Test the PE module with a variety of fixed-point inputs."""
 
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
     # Reset

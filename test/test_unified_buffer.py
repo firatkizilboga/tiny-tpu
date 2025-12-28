@@ -19,7 +19,7 @@ X = [
 async def test_unified_buffer(dut):
 
     # Create a clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
     # rst the DUT (device under test)

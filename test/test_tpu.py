@@ -67,7 +67,7 @@ leak_factor = 0.5
 async def test_tpu(dut): 
     
     # Create a clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
     # rst the DUT (device under test)

@@ -36,7 +36,7 @@ INPUT_DATA_VALUES = [2.5, -1.2, 0.8, -3.1]  # mix of positive and negative value
 async def test_leaky_relu_derivative_parent_4x2_staggered(dut):
     """test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -202,13 +202,13 @@ async def test_leaky_relu_derivative_parent_4x2_staggered(dut):
     col2_results = []
     
     for cycle_num in range(10):
-        if dut.lr_d_valid_1_out.value.integer:
-            output_val = from_fixed(dut.lr_d_data_1_out.value.integer)
+        if int(dut.lr_d_valid_1_out.value):
+            output_val = from_fixed(int(dut.lr_d_data_1_out.value))
             col1_results.append(output_val)
             print(f"cycle {cycle_num}: col1 output = {output_val:.5f}")
             
-        if dut.lr_d_valid_2_out.value.integer:
-            output_val = from_fixed(dut.lr_d_data_2_out.value.integer)
+        if int(dut.lr_d_valid_2_out.value):
+            output_val = from_fixed(int(dut.lr_d_data_2_out.value))
             col2_results.append(output_val)
             print(f"cycle {cycle_num}: col2 output = {output_val:.5f}")
             
@@ -243,7 +243,7 @@ async def test_leaky_relu_derivative_parent_4x2_staggered(dut):
 async def test_leaky_relu_derivative_parent_as_single_child(dut):
     """test case 2: use leaky_relu_derivative_parent as single leaky_relu_derivative_child interface (4 values)"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -302,8 +302,8 @@ async def test_leaky_relu_derivative_parent_as_single_child(dut):
     # collect outputs from column 1 only
     results = []
     for cycle_num in range(10):
-        if dut.lr_d_valid_1_out.value.integer:
-            output_val = from_fixed(dut.lr_d_data_1_out.value.integer)
+        if int(dut.lr_d_valid_1_out.value):
+            output_val = from_fixed(int(dut.lr_d_data_1_out.value))
             results.append(output_val)
             print(f"cycle {cycle_num}: output = {output_val:.5f}")
         await RisingEdge(dut.clk)
@@ -326,7 +326,7 @@ async def test_leaky_relu_derivative_parent_as_single_child(dut):
 async def test_leaky_relu_derivative_parent_edge_cases(dut):
     """test case 3: test leaky_relu_derivative_parent with edge cases on both columns"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -387,8 +387,8 @@ async def test_leaky_relu_derivative_parent_edge_cases(dut):
     
     # collect column 1 results
     for cycle_num in range(6):
-        if dut.lr_d_valid_1_out.value.integer:
-            output_val = from_fixed(dut.lr_d_data_1_out.value.integer)
+        if int(dut.lr_d_valid_1_out.value):
+            output_val = from_fixed(int(dut.lr_d_data_1_out.value))
             col1_results.append(output_val)
             expected = compute_leaky_relu_derivative(edge_cases[len(col1_results)-1], LEAK_FACTOR)
             abs_err = abs(output_val - expected)
@@ -402,7 +402,7 @@ async def test_leaky_relu_derivative_parent_edge_cases(dut):
 async def test_leaky_relu_derivative_parent_invalid_inputs(dut):
     """test case 4: test leaky_relu_derivative_parent with invalid input combinations"""
     
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # reset
@@ -422,10 +422,10 @@ async def test_leaky_relu_derivative_parent_invalid_inputs(dut):
     dut.lr_d_valid_2_in.value = 0
     
     await RisingEdge(dut.clk)
-    # assert dut.lr_d_valid_1_out.value.integer == 0, "col1 output should be invalid when lr_d_valid_1_in is low"
-    # assert dut.lr_d_valid_2_out.value.integer == 0, "col2 output should be invalid when lr_d_valid_2_in is low"
-    # assert dut.lr_d_data_1_out.value.integer == 0, "col1 output data should be zero when invalid"
-    # assert dut.lr_d_data_2_out.value.integer == 0, "col2 output data should be zero when invalid"
+    # assert int(dut.lr_d_valid_1_out.value) == 0, "col1 output should be invalid when lr_d_valid_1_in is low"
+    # assert int(dut.lr_d_valid_2_out.value) == 0, "col2 output should be invalid when lr_d_valid_2_in is low"
+    # assert int(dut.lr_d_data_1_out.value) == 0, "col1 output data should be zero when invalid"
+    # assert int(dut.lr_d_data_2_out.value) == 0, "col2 output data should be zero when invalid"
     print("test case 1 passed: outputs invalid when no valid signals asserted")
     
     # test case 2: only column 1 valid
@@ -433,8 +433,8 @@ async def test_leaky_relu_derivative_parent_invalid_inputs(dut):
     dut.lr_d_valid_2_in.value = 0
     
     await RisingEdge(dut.clk)
-    # assert dut.lr_d_valid_1_out.value.integer == 1, "col1 output should be valid when lr_d_valid_1_in is high"
-    # assert dut.lr_d_valid_2_out.value.integer == 0, "col2 output should be invalid when lr_d_valid_2_in is low"
+    # assert int(dut.lr_d_valid_1_out.value) == 1, "col1 output should be valid when lr_d_valid_1_in is high"
+    # assert int(dut.lr_d_valid_2_out.value) == 0, "col2 output should be invalid when lr_d_valid_2_in is low"
     print("test case 2 passed: col1 valid, col2 invalid as expected")
     
     # test case 3: only column 2 valid
@@ -442,8 +442,8 @@ async def test_leaky_relu_derivative_parent_invalid_inputs(dut):
     dut.lr_d_valid_2_in.value = 1
     
     await RisingEdge(dut.clk)
-    # assert dut.lr_d_valid_1_out.value.integer == 0, "col1 output should be invalid when lr_d_valid_1_in is low"
-    # assert dut.lr_d_valid_2_out.value.integer == 1, "col2 output should be valid when lr_d_valid_2_in is high"
+    # assert int(dut.lr_d_valid_1_out.value) == 0, "col1 output should be invalid when lr_d_valid_1_in is low"
+    # assert int(dut.lr_d_valid_2_out.value) == 1, "col2 output should be valid when lr_d_valid_2_in is high"
     print("test case 3 passed: col1 invalid, col2 valid as expected")
     
     # test case 4: both columns valid
@@ -451,8 +451,8 @@ async def test_leaky_relu_derivative_parent_invalid_inputs(dut):
     dut.lr_d_valid_2_in.value = 1
     
     await RisingEdge(dut.clk)
-    # assert dut.lr_d_valid_1_out.value.integer == 1, "col1 output should be valid when lr_d_valid_1_in is high"
-    # assert dut.lr_d_valid_2_out.value.integer == 1, "col2 output should be valid when lr_d_valid_2_in is high"
+    # assert int(dut.lr_d_valid_1_out.value) == 1, "col1 output should be valid when lr_d_valid_1_in is high"
+    # assert int(dut.lr_d_valid_2_out.value) == 1, "col2 output should be valid when lr_d_valid_2_in is high"
     print("test case 4 passed: both columns valid as expected")
     
     print("invalid input tests passed!")

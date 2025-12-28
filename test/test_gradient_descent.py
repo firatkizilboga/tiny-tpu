@@ -18,7 +18,7 @@ def from_fixed(val, frac_bits=FRAC_BITS):
 
 @cocotb.test()
 async def test_gradient_descent(dut):
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
 

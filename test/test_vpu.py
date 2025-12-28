@@ -86,7 +86,7 @@ H1 = [
 
 @cocotb.test()
 async def test_vector_unit(dut):
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     await RisingEdge(dut.clk)
 
@@ -97,7 +97,7 @@ async def test_vector_unit(dut):
     ### Test forward pass pathway
     # ub/input -> bias -> lr -> ub/output
     dut.rst.value = 0
-    dut.data_pathway.value = 0b1100 
+    dut.vpu_data_pathway.value = 0b1100 
     
     dut.vpu_valid_in_1.value = 1
     dut.vpu_valid_in_2.value = 1
@@ -123,14 +123,14 @@ async def test_vector_unit(dut):
     await RisingEdge(dut.clk)
 
     dut.rst.value = 0
-    dut.data_pathway.value = 0b1111
+    dut.vpu_data_pathway.value = 0b1111
     dut.vpu_valid_in_1.value = 1
     dut.vpu_valid_in_2.value = 1
 
     dut.bias_scalar_in_1.value = to_fixed(B2[0])
     # dut.bias_scalar_in_1.value = to_fixed(B2[1])
     dut.lr_leak_factor_in.value = to_fixed(0.5)
-    dut.inv_batch_size_times_two_in = to_fixed(2/4)  # 2/N where N is our batch size which is 4
+    dut.inv_batch_size_times_two_in.value = to_fixed(2/4)  # 2/N where N is our batch size which is 4
     dut.vpu_data_in_1.value = to_fixed(Z2_pre[0][0])
     # dut.vpu_data_in_2.value = to_fixed(z[1])
     await RisingEdge(dut.clk)
@@ -155,7 +155,7 @@ async def test_vector_unit(dut):
 
     dut.Y_in_1.value = to_fixed(Y[2][0])
     # dut.Y_in_2.value = to_fixed(Y[0][0])
-    dut.vpu_valid_in_1 = 0
+    dut.vpu_valid_in_1.value = 0
     await RisingEdge(dut.clk)
 
     dut.Y_in_1.value = to_fixed(Y[3][0])
@@ -176,7 +176,7 @@ async def test_vector_unit(dut):
 
     # Test forward pass pathway
     dut.rst.value = 0
-    dut.data_pathway.value = 0b0001 
+    dut.vpu_data_pathway.value = 0b0001 
 
     ## PREMATURELY start inputting Hs 1 clk cycle before we input the dL/dH values because it takes 1 clk cycle to compute its dH/dZ.
     ## ^^ maybe its a good assumption to have in future that activation derivatives are NOT combinational, but take multiple clk cycles. 
@@ -186,18 +186,16 @@ async def test_vector_unit(dut):
     dut.vpu_data_in_1.value = to_fixed(dL_by_H1[0][0])
     dut.H_in_1.value = to_fixed(H1[0][0])
 
-    dut.vpu_valid_in_1 = 1 
-    dut.vpu_valid_in_2 = 0
+    dut.vpu_valid_in_1.value = 1 
+    dut.vpu_valid_in_2.value = 0
 
     await RisingEdge(dut.clk)
     dut.vpu_data_in_1.value = to_fixed(dL_by_H1[1][0])
     dut.vpu_data_in_2.value = to_fixed(dL_by_H1[0][1])
 
     dut.H_in_1.value = to_fixed(H1[1][0])
-    dut.H_in_2.value = to_fixed(H1[0][1])
-
-    dut.vpu_valid_in_1 = 1
-    dut.vpu_valid_in_2 = 1
+    dut.vpu_valid_in_1.value = 1
+    dut.vpu_valid_in_2.value = 1
     await RisingEdge(dut.clk)
 
     dut.vpu_data_in_1.value = to_fixed(dL_by_H1[2][0])
@@ -206,8 +204,8 @@ async def test_vector_unit(dut):
     dut.H_in_1.value = to_fixed(H1[2][0])
     dut.H_in_2.value = to_fixed(H1[1][1])
 
-    dut.vpu_valid_in_1 = 1
-    dut.vpu_valid_in_2 = 1
+    dut.vpu_valid_in_1.value = 1
+    dut.vpu_valid_in_2.value = 1
     await RisingEdge(dut.clk)
 
     dut.vpu_data_in_1.value = to_fixed(dL_by_H1[3][0])
@@ -224,8 +222,8 @@ async def test_vector_unit(dut):
 
     dut.H_in_2.value = to_fixed(H1[3][1])
 
-    dut.vpu_valid_in_1 = 0
-    dut.vpu_valid_in_2 = 1
+    dut.vpu_valid_in_1.value = 0
+    dut.vpu_valid_in_2.value = 1
 
 
     await ClockCycles(dut.clk, 10)
