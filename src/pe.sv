@@ -130,7 +130,11 @@ module pe #(
             
             // Weight Switch Logic
             if (pe_switch_in) begin
-                weight_reg_active <= weight_reg_inactive;
+                if (pe_accept_w_in) begin
+                    weight_reg_active <= pe_weight_in;
+                end else begin
+                    weight_reg_active <= weight_reg_inactive;
+                end
             end
 
             // Weight register updates - only on clock edges

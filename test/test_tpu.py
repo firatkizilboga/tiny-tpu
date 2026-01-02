@@ -66,13 +66,6 @@ leak_factor = 0.5
 @cocotb.test()
 async def test_tpu(dut): 
     
-    # Helper to wait for VPU processing to finish (valid goes low)
-    async def wait_vpu_done():
-        # Poll until bit 0 of vpu_valid_out becomes 0
-        # Use .integer to handle LogicArray/BinaryValue from packed array
-        while (dut.vpu_valid_out.value.integer & 1) == 1:
-            await RisingEdge(dut.clk)
-
     # Create a clock
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
@@ -218,7 +211,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()  # wait until last value of vpu is done
+    await FallingEdge(dut.vpu_valid_out_1)  # wait until last value of vpu is done
 
     # Load in W2^T
     dut.ub_rd_start_in.value = 1
@@ -309,7 +302,7 @@ async def test_tpu(dut):
     dut.ub_rd_col_size.value = 0
     await RisingEdge(dut.clk)
 
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
     # Load in W2 from UB to top of systolic array
     dut.ub_rd_start_in.value = 1
@@ -372,7 +365,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
     # NOW CALCULATING LEAF NODES (Weight gradients, requires tiling)
     
@@ -429,7 +422,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
     # Load second H1 tile into top of systolic array (we are calculating dL/dW2 first)
     dut.ub_rd_start_in.value = 1
@@ -483,7 +476,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
     # Now calculating W2 gradients
     # Load first H1 tile into top of systolic array
@@ -538,7 +531,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
     # Load second H1 tile into top of systolic array (we are calculating dL/dW2 first)
     dut.ub_rd_start_in.value = 1
@@ -592,7 +585,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await wait_vpu_done()
+    await FallingEdge(dut.vpu_valid_out_1)
 
 
 
