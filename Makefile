@@ -133,13 +133,19 @@ test_int8_e2e: $(SIM_BUILD_DIR)
 	! grep failure results.xml
 	mv tpu.vcd waveforms/int8_e2e.vcd 2>/dev/null || true
 
+test_int4_e2e: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
+	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_int4_e2e $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
+	! grep failure results.xml
+	mv tpu.vcd waveforms/int4_e2e.vcd 2>/dev/null || true
+
 test_multi_precision: $(SIM_BUILD_DIR)
 	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
 	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_multi_precision $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
 	! grep failure results.xml
 	mv tpu.vcd waveforms/multi_precision.vcd 2>/dev/null || true
 
-test_all: test_pe test_systolic test_unified_buffer test_loss_parent test_leaky_relu_parent test_leaky_relu_derivative_parent test_bias_parent test_vpu test_tpu test_gradient_descent test_multi_precision test_int8_e2e
+test_all: test_pe test_systolic test_unified_buffer test_loss_parent test_leaky_relu_parent test_leaky_relu_derivative_parent test_bias_parent test_vpu test_tpu test_gradient_descent test_multi_precision test_int8_e2e test_int4_e2e
 
 
 # ============ DO NOT MODIFY BELOW THIS LINE ==============

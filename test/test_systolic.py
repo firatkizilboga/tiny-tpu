@@ -38,52 +38,49 @@ async def test_systolic_array(dut):
     
     # rst the DUT (device under test)
     dut.rst.value = 1
-    dut.sys_accept_w_1.value = 0
-    dut.sys_accept_w_2.value = 0
+    dut.sys_accept_w[0].value = 0
+    dut.sys_accept_w[1].value = 0
     dut.sys_switch_in.value = 0
+    dut.sys_mode.value = 0  # Q8.8 mode
     await RisingEdge(dut.clk)
 
     # load in transposed weight matrix:
     dut.rst.value = 0
-    dut.sys_weight_in_11.value = to_fixed(W1[0][1])
-    dut.sys_accept_w_1.value = 1
+    dut.sys_weight_in[0].value = to_fixed(W1[0][1])
+    dut.sys_accept_w[0].value = 1
     await RisingEdge(dut.clk)
 
-    dut.sys_weight_in_11.value = to_fixed(W1[0][0])
-    dut.sys_accept_w_1.value = 1
-    dut.sys_weight_in_12.value = to_fixed(W1[1][1])
-    dut.sys_accept_w_2.value = 1
+    dut.sys_weight_in[0].value = to_fixed(W1[0][0])
+    dut.sys_accept_w[0].value = 1
+    dut.sys_weight_in[1].value = to_fixed(W1[1][1])
+    dut.sys_accept_w[1].value = 1
     await RisingEdge(dut.clk)
 
-    dut.sys_accept_w_1.value = 0
-    dut.sys_weight_in_12.value = to_fixed(W1[1][0])
-    dut.sys_accept_w_2.value = 1
+    dut.sys_accept_w[0].value = 0
+    dut.sys_weight_in[1].value = to_fixed(W1[1][0])
+    dut.sys_accept_w[1].value = 1
     dut.sys_switch_in.value = 1
-    dut.sys_data_in_11.value = to_fixed(X[0][0])
+    dut.sys_data_in[0].value = to_fixed(X[0][0])
     dut.sys_start.value = 1
     await RisingEdge(dut.clk)
 
-    dut.sys_accept_w_1.value = 0
-    dut.sys_accept_w_2.value = 0
+    dut.sys_accept_w[0].value = 0
+    dut.sys_accept_w[1].value = 0
     dut.sys_switch_in.value = 0
-    dut.sys_data_in_11.value = to_fixed(X[1][0])
+    dut.sys_data_in[0].value = to_fixed(X[1][0])
     dut.sys_start.value = 1
-    # dut.sys_start_2.value = 1
     await RisingEdge(dut.clk)
 
-    dut.sys_data_in_11.value = to_fixed(X[2][0])
+    dut.sys_data_in[0].value = to_fixed(X[2][0])
     dut.sys_start.value = 1
-    dut.sys_data_in_21.value = to_fixed(X[1][1])
-    # dut.sys_start_2.value = 1
+    dut.sys_data_in[1].value = to_fixed(X[1][1])
     await RisingEdge(dut.clk)
 
     dut.sys_start.value = 1
     dut.sys_start.value = 0
-    # dut.sys_start_2.value = 1
     await RisingEdge(dut.clk)
 
     dut.sys_start.value = 0
-    # dut.sys_start_2.value = 0
     await RisingEdge(dut.clk)
     
     await ClockCycles(dut.clk, 10)

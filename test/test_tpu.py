@@ -87,12 +87,14 @@ async def test_tpu(dut):
     dut.sys_switch_in.value = 0
     dut.vpu_leak_factor_in.value = 0
     dut.inv_batch_size_times_two_in.value = 0
+    dut.sys_mode.value = 0  # Q8.8 mode
     await RisingEdge(dut.clk)
 
     dut.rst.value = 0
     dut.learning_rate_in.value = to_fixed(learning_rate)
     dut.vpu_leak_factor_in.value = to_fixed(leak_factor)
     dut.inv_batch_size_times_two_in.value = to_fixed(2/len(X))
+    dut.sys_mode.value = 0  # Q8.8 mode for backward compatibility
     await RisingEdge(dut.clk)
 
     # Load X, Y, W1, B1, W2, B2 (in that order)

@@ -36,6 +36,43 @@ module pe #(
     logic signed [15:0] weight_reg_active; // foreground register
     logic signed [15:0] weight_reg_inactive; // background register
     
+    logic signed [15:0] current_weight;
+    
+    // Mux to select weight for current cycle (supports same-cycle switching)
+    assign current_weight = pe_switch_in ? weight_reg_inactive : weight_reg_active;
+
+    // Operand slicing for Packed Modes (defined outside always_comb for simulator safety)
+    logic signed [7:0] a_hi_8, a_lo_8, w_hi_8, w_lo_8;
+    logic signed [3:0] a3_4, a2_4, a1_4, a0_4;
+    logic signed [3:0] w3_4, w2_4, w1_4, w0_4;
+
+    assign a_hi_8 = pe_input_in[15:8];
+    assign a_lo_8 = pe_input_in[7:0];
+    assign w_hi_8 = current_weight[15:8];
+    assign w_lo_8 = current_weight[7:0];
+
+    assign a3_4 = pe_input_in[15:12];
+    assign a2_4 = pe_input_in[11:8];
+    assign a1_4 = pe_input_in[7:4];
+    assign a0_4 = pe_input_in[3:0];
+
+    assign w3_4 = current_weight[15:12];
+    assign w2_4 = current_weight[11:8];
+    assign w1_4 = current_weight[7:4];
+    assign w0_4 = current_weight[3:0];
+
+    // Intermediate wires for ALU product terms (moved to module scope for simulator safety)
+    logic signed [15:0] prod_hi, prod_lo;
+    logic signed [7:0] p3, p2, p1, p0;
+
+    assign prod_hi = a_hi_8 * w_hi_8;
+    assign prod_lo = a_lo_8 * w_lo_8;
+    
+    assign p3 = a3_4 * w3_4;
+    assign p2 = a2_4 * w2_4;
+    assign p1 = a1_4 * w1_4;
+    assign p0 = a0_4 * w0_4;
+
     //---------------------------------------------------------
     // Multi-Modal ALU
     //---------------------------------------------------------
@@ -44,67 +81,30 @@ module pe #(
             // Q8.8 Fixed-Point (Legacy Mode)
             // (A * W) -> 32-bit product effectively Q16.16
             2'b00: begin
-                alu_out = pe_input_in * weight_reg_active;
+                alu_out = pe_input_in * current_weight;
             end
 
             // INT16 Mode
             // A * W -> 32-bit integer product
             2'b01: begin
-                alu_out = pe_input_in * weight_reg_active;
+                alu_out = pe_input_in * current_weight;
             end
 
             // INT8 Packed Mode (W8A8)
-            // Input:  [A_hi (8) | A_lo (8)]
-            // Weight: [W_hi (8) | W_lo (8)]
             // Result: (A_hi * W_hi) + (A_lo * W_lo)
             2'b10: begin
-                logic signed [7:0] a_hi, a_lo, w_hi, w_lo;
-                logic signed [15:0] prod_hi, prod_lo;
-                
-                a_hi = pe_input_in[15:8];
-                a_lo = pe_input_in[7:0];
-                w_hi = weight_reg_active[15:8];
-                w_lo = weight_reg_active[7:0];
-                
-                prod_hi = a_hi * w_hi;
-                prod_lo = a_lo * w_lo;
-                
-                alu_out = {{16{prod_hi[15]}}, prod_hi} + {{16{prod_lo[15]}}, prod_lo};
+                alu_out = prod_hi + prod_lo;
             end
 
             // INT4 Packed Mode (W4A4)
-            // Input:  [A3 (4) | A2 (4) | A1 (4) | A0 (4)]
-            // Weight: [W3 (4) | W2 (4) | W1 (4) | W0 (4)]
             // Result: Sum of 4 INT4 products
             2'b11: begin
-                logic signed [3:0] a3, a2, a1, a0;
-                logic signed [3:0] w3, w2, w1, w0;
-                logic signed [7:0] p3, p2, p1, p0;
-                
-                a3 = pe_input_in[15:12];
-                a2 = pe_input_in[11:8];
-                a1 = pe_input_in[7:4];
-                a0 = pe_input_in[3:0];
-                
-                w3 = weight_reg_active[15:12];
-                w2 = weight_reg_active[11:8];
-                w1 = weight_reg_active[7:4];
-                w0 = weight_reg_active[3:0];
-                
-                // Sign-extend 4-bit operands to calculate product safely
-                p3 = a3 * w3;
-                p2 = a2 * w2;
-                p1 = a1 * w1;
-                p0 = a0 * w0;
-                
-                alu_out = {{24{p3[7]}}, p3} + 
-                          {{24{p2[7]}}, p2} + 
-                          {{24{p1[7]}}, p1} + 
-                          {{24{p0[7]}}, p0};
+                alu_out = p3 + p2 + p1 + p0;
             end
             
             default: alu_out = '0;
         endcase
+
         
         // Accumulator Logic
         psum_next = alu_out + pe_psum_in;
@@ -112,12 +112,10 @@ module pe #(
 
     // Only the switch flag is combinational (active register copies inactive register on the same clock cycle that switch flag is set)
     // That means inputs from the left side of the PE can load in on the same clock cycle that the switch flag is set
-    always_comb begin
-        if (pe_switch_in) begin
-            weight_reg_active = weight_reg_inactive;
-        end
-    end
-
+    // Only the switch flag is combinational (active register copies inactive register on the same clock cycle that switch flag is set)
+    // That means inputs from the left side of the PE can load in on the same clock cycle that the switch flag is set
+    // FIXED: Moved to always_ff to avoid multiple drivers. This effectively makes it a synchronous update.
+    
     always_ff @(posedge clk or posedge rst) begin
         if (rst || !pe_enabled) begin
             pe_input_out <= 16'b0;
@@ -130,6 +128,11 @@ module pe #(
             pe_valid_out <= pe_valid_in;
             pe_switch_out <= pe_switch_in;
             
+            // Weight Switch Logic
+            if (pe_switch_in) begin
+                weight_reg_active <= weight_reg_inactive;
+            end
+
             // Weight register updates - only on clock edges
             if (pe_accept_w_in) begin
                 weight_reg_inactive <= pe_weight_in;

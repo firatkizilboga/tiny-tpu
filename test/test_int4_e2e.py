@@ -4,39 +4,42 @@ from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 import numpy as np
 
 """
-INT8 Packed E2E Test for TinyTPU.
+INT4 Packed E2E Test for TinyTPU.
 
-This test mimics test_tpu.py but uses INT8 packed mode (sys_mode=2).
-Each 16-bit word holds two INT8 values: (hi, lo).
-The PE computes: (input_hi * weight_hi) + (input_lo * weight_lo)
+This test mimics test_int8_e2e.py but uses INT4 packed mode (sys_mode=3).
+Each 16-bit word holds four INT4 values: (v3, v2, v1, v0).
+The PE computes: (input_v3 * weight_v3) + (input_v2 * weight_v2) + 
+                 (input_v1 * weight_v1) + (input_v0 * weight_v0)
 
 We do a simple 4x2 input * 2x2 weight matrix multiply.
 """
 
-def pack_int8(hi, lo):
-    """Pack two signed INT8 values into one unsigned 16-bit word."""
-    return ((hi & 0xFF) << 8) | (lo & 0xFF)
+def pack_int4(v3, v2, v1, v0):
+    """Pack four signed INT4 values into one unsigned 16-bit word."""
+    return ((v3 & 0xF) << 12) | ((v2 & 0xF) << 8) | ((v1 & 0xF) << 4) | (v0 & 0xF)
 
-def unpack_int8(packed):
-    """Unpack a 16-bit word into two signed INT8 values (hi, lo)."""
-    hi = (packed >> 8) & 0xFF
-    lo = packed & 0xFF
-    # Convert to signed
-    if hi >= 128:
-        hi -= 256
-    if lo >= 128:
-        lo -= 256
-    return hi, lo
+def unpack_int4(packed):
+    """Unpack a 16-bit word into four signed INT4 values (v3, v2, v1, v0)."""
+    v3 = (packed >> 12) & 0xF
+    v2 = (packed >> 8) & 0xF
+    v1 = (packed >> 4) & 0xF
+    v0 = packed & 0xF
+    
+    # Convert to signed (4-bit: -8 to +7)
+    def to_signed(val):
+        return val - 16 if val >= 8 else val
+    
+    return to_signed(v3), to_signed(v2), to_signed(v1), to_signed(v0)
 
 def swar_dot(a_packed, w_packed):
-    """Compute SWAR dot product: (a_hi * w_hi) + (a_lo * w_lo)."""
-    a_hi, a_lo = unpack_int8(a_packed)
-    w_hi, w_lo = unpack_int8(w_packed)
-    return (a_hi * w_hi) + (a_lo * w_lo)
+    """Compute SWAR dot product: 4-way multiply-accumulate."""
+    a3, a2, a1, a0 = unpack_int4(a_packed)
+    w3, w2, w1, w0 = unpack_int4(w_packed)
+    return (a3 * w3) + (a2 * w2) + (a1 * w1) + (a0 * w0)
 
 def compute_expected_outputs(A, W):
     """
-    Compute expected systolic array outputs for INT8 packed mode.
+    Compute expected systolic array outputs for INT4 packed mode.
     
     Args:
         A: Input matrix (rows x cols) of packed uint16 values
@@ -58,16 +61,11 @@ def compute_expected_outputs(A, W):
     - ub_rd_input_data_out_1 → sys_data_in_21 → A[t][1]
     
     Weight assignment (AFTER transpose load):
-    - pe11 gets W[0][0] (column 0, row 0)
-    - pe12 gets W[1][0] (was W col 0), flows down from pe11
-    - pe21 gets pe_weight_out_11 = W[0][0] → then reloaded? Actually weights FLOW DOWN
-    
-    Wait - weights flow top-to-bottom within a column:
+    - Weights flow top-to-bottom within a column
     - Column 0: pe11 → pe21 (both see weight that came in on sys_weight_in_11)
     - Column 1: pe12 → pe22 (both see weight that came in on sys_weight_in_12)
     
-    With transpose, what's on the weight channels over time?
-    For a 2x2 matrix, it takes 2 weight load cycles.
+    After transpose load, the weight matrix becomes W^T
     """
     num_input_rows = len(A)
     results = []
@@ -78,12 +76,6 @@ def compute_expected_outputs(A, W):
     # pe12 sees W^T[0][1] = W[1][0]  <- TRANSPOSED!
     # pe21 sees W^T[1][0] = W[0][1]  <- TRANSPOSED!
     # pe22 sees W^T[1][1] = W[1][1]
-    
-    # Actually, in a weight-stationary array:
-    # - Row 0 PEs (pe11, pe12) see sys_data_in_11 = A[t][0]
-    # - Row 1 PEs (pe21, pe22) see sys_data_in_21 = A[t][1]
-    # - Each column shares the same weight
-    # - PSUMs flow top-to-bottom: pe11→pe21, pe12→pe22
     
     for t in range(num_input_rows):
         # Column 0: pe11 then pe21 (psum flows down)
@@ -103,9 +95,8 @@ def compute_expected_outputs(A, W):
     return results
 
 
-
-def generate_random_packed_matrix(rows, cols, range_min=-128, range_max=127, seed=None):
-    """Generate a random matrix of packed INT8 values."""
+def generate_random_packed_matrix(rows, cols, range_min=-8, range_max=7, seed=None):
+    """Generate a random matrix of packed INT4 values."""
     if seed is not None:
         np.random.seed(seed)
     
@@ -113,18 +104,20 @@ def generate_random_packed_matrix(rows, cols, range_min=-128, range_max=127, see
     for r in range(rows):
         row = []
         for c in range(cols):
-            # Use full range to verify sign extension and arithmetic
-            hi = np.random.randint(range_min, range_max + 1)
-            lo = np.random.randint(range_min, range_max + 1)
-            row.append(pack_int8(hi, lo))
+            # Use full range
+            v3 = np.random.randint(range_min, range_max + 1)
+            v2 = np.random.randint(range_min, range_max + 1)
+            v1 = np.random.randint(range_min, range_max + 1)
+            v0 = np.random.randint(range_min, range_max + 1)
+            row.append(pack_int4(v3, v2, v1, v0))
         matrix.append(row)
     return matrix
 
 
 
 @cocotb.test()
-async def test_int8_e2e(dut):
-    """INT8 Packed Mode E2E Test - Debug with simple known values"""
+async def test_int4_e2e(dut):
+    """INT4 Packed Mode E2E Test - Debug with simple known values"""
     
     # Configuration - 50 rows to simulate larger matrix operations
     DEBUG_MODE = False  # Set to True for debugging with simple values
@@ -137,7 +130,7 @@ async def test_int8_e2e(dut):
     
     # Reset
     dut.rst.value = 1
-    dut.sys_mode.value = 2  # INT8 Packed Mode!
+    dut.sys_mode.value = 3  # INT4 Packed Mode!
     dut.ub_wr_host_data_in[0].value = 0
     dut.ub_wr_host_data_in[1].value = 0
     dut.ub_wr_host_valid_in[0].value = 0
@@ -161,62 +154,61 @@ async def test_int8_e2e(dut):
     # --------------------------------
     # Define Simple Test Data for Debugging
     # --------------------------------
-    # --------------------------------
-    # Define Simple Test Data for Debugging
-    # --------------------------------
     if DEBUG_MODE:
          # Corner Cases for Robustness
-        case = 3 # Enable different cases manually or wrap in a loop if desired
+        case = 3
         
         if case == 0:
             # 1. Zero Input
             dut._log.info("DEBUG MODE: Testing All Zeros")
-            A = [[pack_int8(0, 0)]*2 for _ in range(NUM_INPUT_ROWS)]
-            W = [[pack_int8(0, 0)]*2 for _ in range(2)]
+            A = [[pack_int4(0, 0, 0, 0)]*2 for _ in range(NUM_INPUT_ROWS)]
+            W = [[pack_int4(0, 0, 0, 0)]*2 for _ in range(2)]
         elif case == 1:
-            # 2. Max Positive
-            dut._log.info("DEBUG MODE: Testing Max Positive (127)")
-            A = [[pack_int8(127, 127)]*2 for _ in range(NUM_INPUT_ROWS)]
-            W = [[pack_int8(127, 127)]*2 for _ in range(2)]
+            # 2. Max Positive (7)
+            dut._log.info("DEBUG MODE: Testing Max Positive (7)")
+            A = [[pack_int4(7, 7, 7, 7)]*2 for _ in range(NUM_INPUT_ROWS)]
+            W = [[pack_int4(7, 7, 7, 7)]*2 for _ in range(2)]
         elif case == 2:
-            # 3. Max Negative
-            dut._log.info("DEBUG MODE: Testing Max Negative (-128)")
-            A = [[pack_int8(-128, -128)]*2 for _ in range(NUM_INPUT_ROWS)]
-            W = [[pack_int8(-128, -128)]*2 for _ in range(2)]
+            # 3. Max Negative (-8)
+            dut._log.info("DEBUG MODE: Testing Max Negative (-8)")
+            A = [[pack_int4(-8, -8, -8, -8)]*2 for _ in range(NUM_INPUT_ROWS)]
+            W = [[pack_int4(-8, -8, -8, -8)]*2 for _ in range(2)]
         else:
-             # 4. Simple arithmetic check
-            dut._log.info("DEBUG MODE: Using simple test values A_hi * W_hi = A_hi * 1 = A_hi")
+            # 4. Simple arithmetic check
+            # Simple values: pack(v3, v2, v1, v0) where SWAR computes sum of 4 products
+            # Use pack(1, 1, 1, 1) so result is just sum of inputs (makes tracing easier)
             A = [
-                [pack_int8(1, 0), pack_int8(2, 0)],   # Row 0: ch0=(1,0), ch1=(2,0)
-                [pack_int8(3, 0), pack_int8(4, 0)],   # Row 1: ch0=(3,0), ch1=(4,0)
-                [pack_int8(5, 0), pack_int8(6, 0)],   # Row 2: ch0=(5,0), ch1=(6,0)
-                [pack_int8(7, 0), pack_int8(8, 0)],   # Row 3: ch0=(7,0), ch1=(8,0)
+                [pack_int4(1, 1, 1, 1), pack_int4(2, 2, 2, 2)],   # Row 0
+                [pack_int4(1, 1, 1, 1), pack_int4(2, 2, 2, 2)],   # Row 1
+                [pack_int4(1, 1, 1, 1), pack_int4(2, 2, 2, 2)],   # Row 2
+                [pack_int4(1, 1, 1, 1), pack_int4(2, 2, 2, 2)],   # Row 3
             ]
             
             W = [
-                [pack_int8(1, 0), pack_int8(1, 0)],   # Row 0: all weights = (1,0)
-                [pack_int8(1, 0), pack_int8(1, 0)],   # Row 1: all weights = (1,0)
+                [pack_int4(1, 1, 1, 1), pack_int4(1, 1, 1, 1)],   # Row 0
+                [pack_int4(1, 1, 1, 1), pack_int4(1, 1, 1, 1)],   # Row 1
             ]
+            dut._log.info("DEBUG MODE: Using simple test values")
     else:
-        # Full Range Random Test
-        A = generate_random_packed_matrix(NUM_INPUT_ROWS, 2, range_min=-128, range_max=127, seed=SEED)
-        W = generate_random_packed_matrix(2, 2, range_min=-128, range_max=127, seed=SEED + 1)
+        # Full Range Random Test (-8 to 7)
+        A = generate_random_packed_matrix(NUM_INPUT_ROWS, 2, range_min=-8, range_max=7, seed=SEED)
+        W = generate_random_packed_matrix(2, 2, range_min=-8, range_max=7, seed=SEED + 1)
 
     
     # Log the generated data
     dut._log.info(f"Input A ({len(A)} rows):")
     for i, row in enumerate(A[:4]):  # Show first 4 rows
-        hi0, lo0 = unpack_int8(row[0])
-        hi1, lo1 = unpack_int8(row[1])
-        dut._log.info(f"  A[{i}] = [({hi0},{lo0}), ({hi1},{lo1})]")
+        v3_0, v2_0, v1_0, v0_0 = unpack_int4(row[0])
+        v3_1, v2_1, v1_1, v0_1 = unpack_int4(row[1])
+        dut._log.info(f"  A[{i}] = [({v3_0},{v2_0},{v1_0},{v0_0}), ({v3_1},{v2_1},{v1_1},{v0_1})]")
     if len(A) > 4:
         dut._log.info(f"  ... ({len(A) - 4} more rows)")
     
     dut._log.info(f"Weight W:")
     for i, row in enumerate(W):
-        hi0, lo0 = unpack_int8(row[0])
-        hi1, lo1 = unpack_int8(row[1])
-        dut._log.info(f"  W[{i}] = [({hi0},{lo0}), ({hi1},{lo1})]")
+        v3_0, v2_0, v1_0, v0_0 = unpack_int4(row[0])
+        v3_1, v2_1, v1_1, v0_1 = unpack_int4(row[1])
+        dut._log.info(f"  W[{i}] = [({v3_0},{v2_0},{v1_0},{v0_0}), ({v3_1},{v2_1},{v1_1},{v0_1})]")
     
     # --------------------------------
     # Load A into UB
@@ -235,7 +227,7 @@ async def test_int8_e2e(dut):
         dut.ub_wr_host_valid_in[1].value = 1
         await RisingEdge(dut.clk)
     
-    # Last column value (use last index, not hardcoded 3)
+    # Last column value
     dut.ub_wr_host_data_in[0].value = 0
     dut.ub_wr_host_valid_in[0].value = 0
     dut.ub_wr_host_data_in[1].value = A[len(A)-1][1]
@@ -363,11 +355,11 @@ async def test_int8_e2e(dut):
     dut._log.info("Verifying Column 0 (Channel 1) against golden model...")
     for i, (hw, gold) in enumerate(zip(valid_captured_1, expected_col_0)):
         if hw != gold:
-            hi0, lo0 = unpack_int8(A[i][0])
-            hi1, lo1 = unpack_int8(A[i][1])
+            v3_0, v2_0, v1_0, v0_0 = unpack_int4(A[i][0])
+            v3_1, v2_1, v1_1, v0_1 = unpack_int4(A[i][1])
             mismatches_col0.append({
                 'row': i, 'hw': hw, 'gold': gold, 
-                'input': f"A[{i}]=({hi0},{lo0}),({hi1},{lo1})"
+                'input': f"A[{i}]=({v3_0},{v2_0},{v1_0},{v0_0}),({v3_1},{v2_1},{v1_1},{v0_1})"
             })
     
     dut._log.info("Verifying Column 1 (Channel 2) against golden model...")
@@ -386,7 +378,7 @@ async def test_int8_e2e(dut):
         # FAIL HARD on any mismatch - no fallback!
         assert False, f"BIT-PERFECT VERIFICATION FAILED! {len(mismatches_col0)} Col0 errors, {len(mismatches_col1)} Col1 errors"
     else:
-        dut._log.info(f"✅ INT8 E2E Test PASSED - BIT-PERFECT MATCH!")
+        dut._log.info(f"✅ INT4 E2E Test PASSED - BIT-PERFECT MATCH!")
     
     dut._log.info(f"  Matrix size: {NUM_INPUT_ROWS}x2 inputs, 2x2 random weights")
     dut._log.info(f"  Channel 1: {len(captured_1)} outputs, {len(set(captured_1))} unique")

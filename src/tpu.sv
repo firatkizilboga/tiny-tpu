@@ -38,31 +38,20 @@ module tpu #(
     logic [15:0] ub_rd_col_size_out;
     logic ub_rd_col_size_valid_out;
     
-    // Array wires for connection to unified_buffer
-    logic [15:0] ub_rd_input_data_out_0;
-    logic [15:0] ub_rd_input_data_out_1;
-    logic ub_rd_input_valid_out_0;
-    logic ub_rd_input_valid_out_1;
+    // Array wires for connection to unified_buffer (now using arrays)
+    logic [15:0] ub_rd_input_data_out [0:SYSTOLIC_ARRAY_WIDTH-1];
+    logic ub_rd_input_valid_out [0:SYSTOLIC_ARRAY_WIDTH-1];
 
-    logic [15:0] ub_rd_weight_data_out_0;
-    logic [15:0] ub_rd_weight_data_out_1;
-    logic ub_rd_weight_valid_out_0;
-    logic ub_rd_weight_valid_out_1;
+    logic [15:0] ub_rd_weight_data_out [0:SYSTOLIC_ARRAY_WIDTH-1];
+    logic ub_rd_weight_valid_out [0:SYSTOLIC_ARRAY_WIDTH-1];
 
-    logic [15:0] ub_rd_bias_data_out_0;
-    logic [15:0] ub_rd_bias_data_out_1;
-    
-    logic [15:0] ub_rd_Y_data_out_0;
-    logic [15:0] ub_rd_Y_data_out_1;
+    logic [15:0] ub_rd_bias_data_out [0:SYSTOLIC_ARRAY_WIDTH-1];
+    logic [15:0] ub_rd_Y_data_out [0:SYSTOLIC_ARRAY_WIDTH-1];
+    logic [15:0] ub_rd_H_data_out [0:SYSTOLIC_ARRAY_WIDTH-1];
 
-    logic [15:0] ub_rd_H_data_out_0;
-    logic [15:0] ub_rd_H_data_out_1;
-
-    // Systolic array internal output wires
-    logic signed [31:0] sys_data_out_21;
-    logic signed [31:0] sys_data_out_22;
-    logic sys_valid_out_21;
-    logic sys_valid_out_22;
+    // Systolic array internal output wires (now arrays)
+    logic signed [SYSTOLIC_ARRAY_WIDTH-1:0][31:0] sys_data_out;
+    logic [SYSTOLIC_ARRAY_WIDTH-1:0] sys_valid_out;
 
     // VPU internal output wires
     logic [15:0] vpu_data_out_1;
@@ -100,56 +89,53 @@ module tpu #(
         .learning_rate_in(learning_rate_in),
 
         // Read ports from UB to left side of systolic array
-        .ub_rd_input_data_out_0(ub_rd_input_data_out_0),
-        .ub_rd_input_data_out_1(ub_rd_input_data_out_1),
-        .ub_rd_input_valid_out_0(ub_rd_input_valid_out_0),
-        .ub_rd_input_valid_out_1(ub_rd_input_valid_out_1),
+        .ub_rd_input_data_out_0(ub_rd_input_data_out[0]),
+        .ub_rd_input_data_out_1(ub_rd_input_data_out[1]),
+        .ub_rd_input_valid_out_0(ub_rd_input_valid_out[0]),
+        .ub_rd_input_valid_out_1(ub_rd_input_valid_out[1]),
 
         // Read ports from UB to top of systolic array
-        .ub_rd_weight_data_out_0(ub_rd_weight_data_out_0),
-        .ub_rd_weight_data_out_1(ub_rd_weight_data_out_1),
-        .ub_rd_weight_valid_out_0(ub_rd_weight_valid_out_0),
-        .ub_rd_weight_valid_out_1(ub_rd_weight_valid_out_1),
+        .ub_rd_weight_data_out_0(ub_rd_weight_data_out[0]),
+        .ub_rd_weight_data_out_1(ub_rd_weight_data_out[1]),
+        .ub_rd_weight_valid_out_0(ub_rd_weight_valid_out[0]),
+        .ub_rd_weight_valid_out_1(ub_rd_weight_valid_out[1]),
 
         // Read ports from UB to bias modules in VPU
-        .ub_rd_bias_data_out_0(ub_rd_bias_data_out_0),
-        .ub_rd_bias_data_out_1(ub_rd_bias_data_out_1),
+        .ub_rd_bias_data_out_0(ub_rd_bias_data_out[0]),
+        .ub_rd_bias_data_out_1(ub_rd_bias_data_out[1]),
 
         // Read ports from UB to loss modules (Y matrices) in VPU
-        .ub_rd_Y_data_out_0(ub_rd_Y_data_out_0),
-        .ub_rd_Y_data_out_1(ub_rd_Y_data_out_1),
+        .ub_rd_Y_data_out_0(ub_rd_Y_data_out[0]),
+        .ub_rd_Y_data_out_1(ub_rd_Y_data_out[1]),
 
         // Read ports from UB to activation derivative modules (H matrices) in VPU
-        .ub_rd_H_data_out_0(ub_rd_H_data_out_0),
-        .ub_rd_H_data_out_1(ub_rd_H_data_out_1),
+        .ub_rd_H_data_out_0(ub_rd_H_data_out[0]),
+        .ub_rd_H_data_out_1(ub_rd_H_data_out[1]),
 
         // Outputs to send number of columns to systolic array
         .ub_rd_col_size_out(ub_rd_col_size_out),
         .ub_rd_col_size_valid_out(ub_rd_col_size_valid_out)
     );
 
-    systolic systolic_inst (
+    systolic #(
+        .N(SYSTOLIC_ARRAY_WIDTH)
+    ) systolic_inst (
         .clk(clk),
         .rst(rst),
 
-        // input signals from left side of systolic array
-        .sys_data_in_11(ub_rd_input_data_out_0),
-        .sys_data_in_21(ub_rd_input_data_out_1),
-        .sys_start(ub_rd_input_valid_out_0),    // start signal
-        // .sys_start_2(ub_rd_input_valid_out_1),    // start signal propagates only from left to right in row 2
+        // Input signals from left side of systolic array (array interface)
+        .sys_data_in(ub_rd_input_data_out),
+        .sys_start(ub_rd_input_valid_out[0]),
 
-        .sys_data_out_21(sys_data_out_21),
-        .sys_data_out_22(sys_data_out_22),
-        .sys_valid_out_21(sys_valid_out_21), 
-        .sys_valid_out_22(sys_valid_out_22),
+        // Output signals from bottom of systolic array (array interface)
+        .sys_data_out(sys_data_out),
+        .sys_valid_out(sys_valid_out),
 
-        // input signals from top of systolic array
-        .sys_weight_in_11(ub_rd_weight_data_out_0), 
-        .sys_weight_in_12(ub_rd_weight_data_out_1),
-        .sys_accept_w_1(ub_rd_weight_valid_out_0),       // accept weight signal propagates only from top to bottom in column 1
-        .sys_accept_w_2(ub_rd_weight_valid_out_1),       // accept weight signal propagates only from top to bottom in column 2
+        // Weight signals from top of systolic array (array interface)
+        .sys_weight_in(ub_rd_weight_data_out),
+        .sys_accept_w(ub_rd_weight_valid_out),
 
-        .sys_switch_in(sys_switch_in),          // switch signal copies weight from shadow buffer to active buffer. propagates from top left to bottom right
+        .sys_switch_in(sys_switch_in),
 
         .ub_rd_col_size_in(ub_rd_col_size_out),
         .ub_rd_col_size_valid_in(ub_rd_col_size_valid_out),
@@ -166,21 +152,21 @@ module tpu #(
 
         .vpu_data_pathway(vpu_data_pathway), // 4-bits to signify which modules to route the inputs to (1 bit for each module)
 
-        // Inputs from systolic array
-        .vpu_data_in_1(sys_data_out_21),
-        .vpu_data_in_2(sys_data_out_22),
-        .vpu_valid_in_1(sys_valid_out_21),
-        .vpu_valid_in_2(sys_valid_out_22),
+        // Inputs from systolic array (using array indices)
+        .vpu_data_in_1(sys_data_out[0]),
+        .vpu_data_in_2(sys_data_out[1]),
+        .vpu_valid_in_1(sys_valid_out[0]),
+        .vpu_valid_in_2(sys_valid_out[1]),
 
         // Inputs from UB
-        .bias_scalar_in_1(ub_rd_bias_data_out_0),               // For bias modules
-        .bias_scalar_in_2(ub_rd_bias_data_out_1),               // For bias modules
-        .lr_leak_factor_in(vpu_leak_factor_in),                 // For leaky relu modules
-        .Y_in_1(ub_rd_Y_data_out_0),                                  // For loss modules
-        .Y_in_2(ub_rd_Y_data_out_1),                                  // For loss modules
-        .inv_batch_size_times_two_in(inv_batch_size_times_two_in),             // For loss modules
-        .H_in_1(ub_rd_H_data_out_0),                                  // For leaky relu derivative modules (WE ONLY NEED THIS PORT FOR EVERY dL/dH after the first node)
-        .H_in_2(ub_rd_H_data_out_1),                                  // For leaky relu derivative modules (WE ONLY NEED THIS PORT FOR EVERY dL/dH after the first node)
+        .bias_scalar_in_1(ub_rd_bias_data_out[0]),
+        .bias_scalar_in_2(ub_rd_bias_data_out[1]),
+        .lr_leak_factor_in(vpu_leak_factor_in),
+        .Y_in_1(ub_rd_Y_data_out[0]),
+        .Y_in_2(ub_rd_Y_data_out[1]),
+        .inv_batch_size_times_two_in(inv_batch_size_times_two_in),
+        .H_in_1(ub_rd_H_data_out[0]),
+        .H_in_2(ub_rd_H_data_out[1]),
 
         // Outputs to UB
         .vpu_data_out_1(vpu_data_out_1),
@@ -188,4 +174,19 @@ module tpu #(
         .vpu_valid_out_1(vpu_valid_out_1),
         .vpu_valid_out_2(vpu_valid_out_2)
     ); 
+    // DEBUG: Trace TPU level signals
+    // DEBUG: Trace TPU level signals
+    always @(posedge clk) begin
+        if (sys_valid_out[0] || sys_valid_out[1]) begin
+             $display("[TPU] t=%0t: sys_valid_out in TPU scope=[%b,%b]", $time, sys_valid_out[0], sys_valid_out[1]);
+        end else begin
+             // Print periodically to ensure tpu module is active
+             if ($time % 10000 == 0) $display("[TPU] t=%0t: sys_valid_out is ZERO", $time);
+        end
+
+        if (vpu_valid_out_1 || vpu_valid_out_2) begin
+             $display("[TPU] t=%0t: vpu_valid_out=[%b,%b]", $time, vpu_valid_out_1, vpu_valid_out_2);
+        end
+    end
+
 endmodule

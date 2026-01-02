@@ -60,7 +60,7 @@ async def test_int16_mode(dut):
     # Force PE11 inputs for quick verification
     # PE11 is at dut.systolic_inst.pe11
     
-    pe = dut.systolic_inst.pe11
+    pe = dut.systolic_inst.gen_row[0].gen_col[0].pe_inst
     
     # Enable PE
     pe.pe_enabled.value = 1
@@ -103,7 +103,7 @@ async def test_int8_packed_mode(dut):
     
     dut.sys_mode.value = 2 # INT8 Packed Mode
     
-    pe = dut.systolic_inst.pe11
+    pe = dut.systolic_inst.gen_row[0].gen_col[0].pe_inst
     pe.pe_enabled.value = 1
     
     # -----------------------------------------------------------
@@ -230,7 +230,7 @@ async def test_int4_packed_mode(dut):
     
     dut.sys_mode.value = 3 # INT4 Packed Mode
     
-    pe = dut.systolic_inst.pe11
+    pe = dut.systolic_inst.gen_row[0].gen_col[0].pe_inst
     pe.pe_enabled.value = 1
     
     # -----------------------------------------------------------
