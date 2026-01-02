@@ -16,7 +16,9 @@
 0001: backward pass pathway (sys --> leaky relu derivative --> output)
 */
 
-module vpu (
+module vpu #(
+    parameter int N = 2
+)(
     input logic clk,
     input logic rst,
 
@@ -29,350 +31,229 @@ module vpu (
     input logic [15:0] requant_zero_point,
 
     // Inputs from systolic array
-    input logic signed [31:0] vpu_data_in_1,
-    input logic signed [31:0] vpu_data_in_2,
-    input logic vpu_valid_in_1,
-    input logic vpu_valid_in_2,
+    input logic signed [N-1:0][31:0] vpu_data_in,
+    input logic [N-1:0] vpu_valid_in,
 
     // Inputs from UB
-    input logic signed [15:0] bias_scalar_in_1,             // For bias modules
-    input logic signed [15:0] bias_scalar_in_2,             // For bias modules
-    input logic signed [15:0] lr_leak_factor_in,            // For leaky relu modules
-    input logic signed [15:0] Y_in_1,                       // For loss modules
-    input logic signed [15:0] Y_in_2,                       // For loss modules
-    input logic signed [15:0] inv_batch_size_times_two_in,  // For loss modules
-    input logic signed [15:0] H_in_1,                       // For leaky relu derivative modules
-    input logic signed [15:0] H_in_2,                       // For leaky relu derivative modules 
+    input logic signed [N-1:0][15:0] bias_scalar_in,        // For bias modules
+    input logic signed [15:0] lr_leak_factor_in,           // For leaky relu modules
+    input logic signed [N-1:0][15:0] Y_in,                 // For loss modules
+    input logic signed [15:0] inv_batch_size_times_two_in, // For loss modules
+    input logic signed [N-1:0][15:0] H_in,                 // For leaky relu derivative modules 
     
     // Outputs to UB
-    output logic signed [15:0] vpu_data_out_1,
-    output logic signed [15:0] vpu_data_out_2,
-    output logic vpu_valid_out_1,
-    output logic vpu_valid_out_2
+    output logic signed [N-1:0][15:0] vpu_data_out,
+    output logic [N-1:0] vpu_valid_out
 );
 
     // Requantized inputs (from 32-bit sys array output to 16-bit VPU pipeline)
-    logic signed [15:0] requant_out_1;
-    logic signed [15:0] requant_out_2;
+    logic signed [N-1:0][15:0] requant_out;
+
+    genvar j;
+    generate
+        for (j = 0; j < N; j++) begin : gen_requant
+            assign requant_out[j] = (sys_mode == 2'b00) ? (vpu_data_in[j] >>> 8) : vpu_data_in[j][15:0];
+
+        end
+    endgenerate
 
     // bias
-    logic [15:0] bias_data_1_in; 
-    logic bias_valid_1_in;
-    logic [15:0] bias_data_2_in;
-    logic bias_valid_2_in;
-    logic [15:0] bias_z_data_out_1;
-    logic bias_valid_1_out;
-    logic [15:0] bias_z_data_out_2;
-    logic bias_valid_2_out;
+    logic signed [N-1:0][15:0] bias_data_in; 
+    logic [N-1:0] bias_valid_in;
+    logic signed [N-1:0][15:0] bias_z_data_out;
+    logic [N-1:0] bias_valid_out;
 
     // bias to lr intermediate values
-    logic [15:0] b_to_lr_data_in_1;
-    logic b_to_lr_valid_in_1;
-    logic [15:0] b_to_lr_data_in_2;
-    logic b_to_lr_valid_in_2;
+    logic signed [N-1:0][15:0] b_to_lr_data_in;
+    logic [N-1:0] b_to_lr_valid_in;
 
     // lr
-    logic [15:0] lr_data_1_in; 
-    logic lr_valid_1_in;
-    logic [15:0] lr_data_2_in;
-    logic lr_valid_2_in;
-    logic [15:0] lr_data_1_out;
-    logic lr_valid_1_out;
-    logic [15:0] lr_data_2_out;
-    logic lr_valid_2_out;
+    logic signed [N-1:0][15:0] lr_data_in; 
+    logic [N-1:0] lr_valid_in;
+    logic signed [N-1:0][15:0] lr_data_out;
+    logic [N-1:0] lr_valid_out;
 
     // lr to loss intermediate values
-    logic [15:0] lr_to_loss_data_in_1;
-    logic lr_to_loss_valid_in_1;
-    logic [15:0] lr_to_loss_data_in_2;
-    logic lr_to_loss_valid_in_2;
+    logic signed [N-1:0][15:0] lr_to_loss_data_in;
+    logic [N-1:0] lr_to_loss_valid_in;
 
     // loss
-    logic [15:0] loss_data_1_in; 
-    logic loss_valid_1_in;
-    logic [15:0] loss_data_2_in;
-    logic loss_valid_2_in;
-    logic [15:0] loss_data_1_out;
-    logic loss_valid_1_out;
-    logic [15:0] loss_data_2_out;
-    logic loss_valid_2_out;
+    logic signed [N-1:0][15:0] loss_data_in; 
+    logic [N-1:0] loss_valid_in;
+    logic signed [N-1:0][15:0] loss_data_out;
+    logic [N-1:0] loss_valid_out;
 
     // loss to lrd intermediate values
-    logic [15:0] loss_to_lrd_data_in_1;
-    logic loss_to_lrd_valid_in_1;
-    logic [15:0] loss_to_lrd_data_in_2;
-    logic loss_to_lrd_valid_in_2;
+    logic signed [N-1:0][15:0] loss_to_lrd_data_in;
+    logic [N-1:0] loss_to_lrd_valid_in;
 
     // lr_d
-    logic [15:0] lr_d_data_1_in; 
-    logic lr_d_valid_1_in;
-    logic [15:0] lr_d_data_2_in;
-    logic lr_d_valid_2_in;
-    logic [15:0] lr_d_data_1_out;
-    logic lr_d_valid_1_out;
-    logic [15:0] lr_d_data_2_out;
-    logic lr_d_valid_2_out;
-    logic [15:0] lr_d_H_in_1;
-    logic [15:0] lr_d_H_in_2;
-    
+    logic signed [N-1:0][15:0] lr_d_data_in; 
+    logic [N-1:0] lr_d_valid_in;
+    logic signed [N-1:0][15:0] lr_d_data_out;
+    logic [N-1:0] lr_d_valid_out;
+    logic signed [N-1:0][15:0] lr_d_H_in;
 
     // temp 'last H matrix' cache
-    logic [15:0] last_H_data_1_in;
-    logic [15:0] last_H_data_2_in;
-    logic [15:0] last_H_data_1_out;
-    logic [15:0] last_H_data_2_out;
+    logic signed [N-1:0][15:0] last_H_data_in;
+    logic signed [N-1:0][15:0] last_H_data_out;
 
-    bias_parent bias_parent_inst (  
+    bias_parent #(.N(N)) bias_parent_inst (  
         .clk(clk),
         .rst(rst),
-        .bias_sys_data_in_1(bias_data_1_in),    // input
-        .bias_sys_data_in_2(bias_data_2_in),    // input
-        .bias_sys_valid_in_1(bias_valid_1_in),  // input
-        .bias_sys_valid_in_2(bias_valid_2_in),  // input
-
-        .bias_scalar_in_1(bias_scalar_in_1),    // input from UB
-        .bias_scalar_in_2(bias_scalar_in_2),    // input from UB 
-
-        .bias_Z_valid_out_1(bias_valid_1_out),  // output
-        .bias_Z_valid_out_2(bias_valid_2_out),  // output
-        .bias_z_data_out_1(bias_z_data_out_1),  // output
-        .bias_z_data_out_2(bias_z_data_out_2)   // output
+        .bias_sys_data_in(bias_data_in),    // input
+        .bias_sys_valid_in(bias_valid_in),  // input
+        .bias_scalar_in(bias_scalar_in),    // input from UB
+        .bias_Z_valid_out(bias_valid_out),  // output
+        .bias_z_data_out(bias_z_data_out)   // output
     );
 
-
-    leaky_relu_parent leaky_relu_parent_inst (
+    leaky_relu_parent #(.N(N)) leaky_relu_parent_inst (
         .clk(clk),
         .rst(rst),
-
-        .lr_data_1_in(lr_data_1_in),                // input
-        .lr_data_2_in(lr_data_2_in),                // input
-        .lr_valid_1_in(lr_valid_1_in),              // input
-        .lr_valid_2_in(lr_valid_2_in),              // input
-
-        .lr_leak_factor_in(lr_leak_factor_in),      // input from UB
-        
-        .lr_data_1_out(lr_data_1_out),              // output 
-        .lr_data_2_out(lr_data_2_out),              // output
-        .lr_valid_1_out(lr_valid_1_out),            // output
-        .lr_valid_2_out(lr_valid_2_out)             // output
+        .lr_data_in(lr_data_in),                // input
+        .lr_valid_in(lr_valid_in),              // input
+        .lr_leak_factor_in(lr_leak_factor_in),  // input from UB
+        .lr_data_out(lr_data_out),              // output 
+        .lr_valid_out(lr_valid_out)             // output
     );
 
-    loss_parent loss_parent_inst ( // TODO: THIS SHOULD BE RENAMED TO LOSS DERIVATIVE MODULE. WE DONT HAVE A MODULE TO COMPUTE THE LOSS
+    loss_parent #(.N(N)) loss_parent_inst (
         .clk(clk),
         .rst(rst),
-        .H_1_in(loss_data_1_in),        // input
-        .H_2_in(loss_data_2_in),        // input
-        .valid_1_in(loss_valid_1_in),   // input
-        .valid_2_in(loss_valid_2_in),   // input
-
-        .Y_1_in(Y_in_1),                // input from UB
-        .Y_2_in(Y_in_2),                // input from UB
+        .H_in(loss_data_in),        // input
+        .Y_in(Y_in),                // input from UB
+        .valid_in(loss_valid_in),   // input
         .inv_batch_size_times_two_in(inv_batch_size_times_two_in),
-
-        .gradient_1_out(loss_data_1_out), // output
-        .gradient_2_out(loss_data_2_out), // output
-        .valid_1_out(loss_valid_1_out),
-        .valid_2_out(loss_valid_2_out)
+        .gradient_out(loss_data_out), // output
+        .valid_out(loss_valid_out)
     );
 
-    leaky_relu_derivative_parent leaky_relu_derivative_parent_inst (
+    leaky_relu_derivative_parent #(.N(N)) leaky_relu_derivative_parent_inst (
         .clk(clk),
         .rst(rst),
-        .lr_d_data_1_in(lr_d_data_1_in),    // input
-        .lr_d_data_2_in(lr_d_data_2_in),    // input
-        .lr_d_valid_1_in(lr_d_valid_1_in),  // input
-        .lr_d_valid_2_in(lr_d_valid_2_in),  // input
-         
-         // TODO - change this variable from leaky relu parent for consistency
-        .lr_d_H_1_in(lr_d_H_in_1),              // input from UB or temp 'last H matrix' cache
-        .lr_d_H_2_in(lr_d_H_in_2),              // input from UB or temp 'last H matrix' cache
+        .lr_d_data_in(lr_d_data_in),    // input
+        .lr_d_valid_in(lr_d_valid_in),  // input
+        .lr_d_H_in(lr_d_H_in),          // input from UB or temp 'last H matrix' cache
         .lr_leak_factor_in(lr_leak_factor_in),
-        
-        .lr_d_data_1_out(lr_d_data_1_out),      // output
-        .lr_d_data_2_out(lr_d_data_2_out),      // output
-        .lr_d_valid_1_out(lr_d_valid_1_out),    // output
-        .lr_d_valid_2_out(lr_d_valid_2_out)     // output
+        .lr_d_data_out(lr_d_data_out),      // output
+        .lr_d_valid_out(lr_d_valid_out)     // output
     );
 
     always @(*) begin
         if (rst) begin
-            vpu_data_out_1 = 16'b0;
-            vpu_data_out_2 = 16'b0;
-            vpu_valid_out_1 = 1'b0;
-            vpu_valid_out_2 = 1'b0;
+            vpu_data_out = '0;
+            vpu_valid_out = '0;
             
             // default internal wire assignments during reset
-            bias_data_1_in = 16'b0;
-            bias_data_2_in = 16'b0;
-            bias_valid_1_in = 1'b0;
-            bias_valid_2_in = 1'b0;
-            lr_data_1_in = 16'b0;
-            lr_data_2_in = 16'b0;
-            lr_valid_1_in = 1'b0;
-            lr_valid_2_in = 1'b0;
-            loss_data_1_in = 16'b0;
-            loss_data_2_in = 16'b0;
-            loss_valid_1_in = 1'b0;
-            loss_valid_2_in = 1'b0;
-            lr_d_data_1_in = 16'b0;
-            lr_d_data_2_in = 16'b0;
-            lr_d_valid_1_in = 1'b0;
-            lr_d_valid_2_in = 1'b0;
+            bias_data_in = '0;
+            bias_valid_in = '0;
+            lr_data_in = '0;
+            lr_valid_in = '0;
+            loss_data_in = '0;
+            loss_valid_in = '0;
+            lr_d_data_in = '0;
+            lr_d_valid_in = '0;
         end else begin
-            // Requantization Stage
-            // Scale, Shift, Saturation
-            // Simplified for now: just casting to 16-bit for legacy/test
-            // TODO: Implement full scale/shift logic based on sys_mode
-            if (sys_mode == 2'b00) begin 
-               // Q8.8 Mode (Result is effectively Q16.16)
-               // Shift right by 8 to get back to Q8.8 (16-bit)
-               requant_out_1 = vpu_data_in_1 >>> 8;
-               requant_out_2 = vpu_data_in_2 >>> 8;
-            end else begin
-               // Integer Modes (INT16, INT8, INT4)
-               // For now, assume direct cast (no scaling applied yet)
-               requant_out_1 = vpu_data_in_1[15:0];
-               requant_out_2 = vpu_data_in_2[15:0];
-            end
+            // Requantization Stage is now handled by the generate block above
+            // just use requant_out signal
+
 
             // bias module
             if(vpu_data_pathway[3]) begin
                 // connect vpu inputs to bias module
-                bias_data_1_in = requant_out_1;
-                bias_data_2_in = requant_out_2;
-                bias_valid_1_in = vpu_valid_in_1;
-                bias_valid_2_in = vpu_valid_in_2;
+                bias_data_in = requant_out;
+                bias_valid_in = vpu_valid_in;
 
                 // connect bias output to intermediate values
-                b_to_lr_data_in_1 = bias_z_data_out_1;
-                b_to_lr_data_in_2 = bias_z_data_out_2;
-                b_to_lr_valid_in_1 = bias_valid_1_out;
-                b_to_lr_valid_in_2 = bias_valid_2_out;
+                b_to_lr_data_in = bias_z_data_out;
+                b_to_lr_valid_in = bias_valid_out;
             end else begin
                 // disable inputs
-                bias_data_1_in = 16'b0;
-                bias_data_2_in = 16'b0;
-                bias_valid_1_in = 1'b0;
-                bias_valid_2_in = 1'b0;
+                bias_data_in = '0;
+                bias_valid_in = '0;
 
                 // connect vpu input to intermediate values
-                b_to_lr_data_in_1 = requant_out_1;
-                b_to_lr_data_in_2 = requant_out_2;
-                b_to_lr_valid_in_1 = vpu_valid_in_1;
-                b_to_lr_valid_in_2 = vpu_valid_in_2;
+                b_to_lr_data_in = requant_out;
+                b_to_lr_valid_in = vpu_valid_in;
             end
 
             // leaky relu module
             if(vpu_data_pathway[2]) begin
                 // connect lr inputs to intermediate values
-                lr_data_1_in = b_to_lr_data_in_1;
-                lr_data_2_in = b_to_lr_data_in_2;
-                lr_valid_1_in = b_to_lr_valid_in_1;
-                lr_valid_2_in = b_to_lr_valid_in_2;
+                lr_data_in = b_to_lr_data_in;
+                lr_valid_in = b_to_lr_valid_in;
 
                 // connect lr outputs to intermediate values
-                lr_to_loss_data_in_1 = lr_data_1_out;
-                lr_to_loss_data_in_2 = lr_data_2_out;
-                lr_to_loss_valid_in_1 = lr_valid_1_out;
-                lr_to_loss_valid_in_2 = lr_valid_2_out;
-
+                lr_to_loss_data_in = lr_data_out;
+                lr_to_loss_valid_in = lr_valid_out;
             end else begin
                 // disable inputs
-                lr_data_1_in = 16'b0;
-                lr_data_2_in = 16'b0;
-                lr_valid_1_in = 1'b0;
-                lr_valid_2_in = 1'b0;
+                lr_data_in = '0;
+                lr_valid_in = '0;
 
                 // connect intermediate values to each other
-                lr_to_loss_data_in_1 = b_to_lr_data_in_1;
-                lr_to_loss_data_in_2 = b_to_lr_data_in_2;
-                lr_to_loss_valid_in_1 = b_to_lr_valid_in_1;
-                lr_to_loss_valid_in_2 = b_to_lr_valid_in_2;
+                lr_to_loss_data_in = b_to_lr_data_in;
+                lr_to_loss_valid_in = b_to_lr_valid_in;
             end
 
             // loss module
             if(vpu_data_pathway[1]) begin
                 // connect loss inputs to intermediate values
-                loss_data_1_in = lr_to_loss_data_in_1;
-                loss_data_2_in = lr_to_loss_data_in_2;
-                loss_valid_1_in = lr_to_loss_valid_in_1;
-                loss_valid_2_in = lr_to_loss_valid_in_2;
+                loss_data_in = lr_to_loss_data_in;
+                loss_valid_in = lr_to_loss_valid_in;
 
                 // connect loss outputs to intermediate values
-                loss_to_lrd_data_in_1 = loss_data_1_out;
-                loss_to_lrd_data_in_2 = loss_data_2_out;
-                loss_to_lrd_valid_in_1 = loss_valid_1_out;
-                loss_to_lrd_valid_in_2 = loss_valid_2_out;
+                loss_to_lrd_data_in = loss_data_out;
+                loss_to_lrd_valid_in = loss_valid_out;
 
                 // Cache and use 'last H matrix'
-                last_H_data_1_in = lr_data_1_out;
-                last_H_data_2_in = lr_data_2_out;
-                lr_d_H_in_1 = last_H_data_1_out;
-                lr_d_H_in_2 = last_H_data_2_out;
+                last_H_data_in = lr_data_out;
+                lr_d_H_in = last_H_data_out;
             end else begin
                 // disable inputs
-                loss_data_1_in = 16'b0;
-                loss_data_2_in = 16'b0;
-                loss_valid_1_in = 1'b0;
-                loss_valid_2_in = 1'b0;
+                loss_data_in = '0;
+                loss_valid_in = '0;
 
                 // connect intermediate values to each other
-                loss_to_lrd_data_in_1 = lr_to_loss_data_in_1;
-                loss_to_lrd_data_in_2 = lr_to_loss_data_in_2;
-                loss_to_lrd_valid_in_1 = lr_to_loss_valid_in_1;
-                loss_to_lrd_valid_in_2 = lr_to_loss_valid_in_2;
+                loss_to_lrd_data_in = lr_to_loss_data_in;
+                loss_to_lrd_valid_in = lr_to_loss_valid_in;
 
                 // Don't cache and use 'last H matrix'
-                lr_d_H_in_1 = H_in_1;
-                lr_d_H_in_2 = H_in_2;
+                lr_d_H_in = H_in;
             end
 
             // leaky relu derivative module
             if(vpu_data_pathway[0]) begin
-                lr_d_data_1_in = loss_to_lrd_data_in_1;
-                lr_d_data_2_in = loss_to_lrd_data_in_2;
-                lr_d_valid_1_in = loss_to_lrd_valid_in_1;
-                lr_d_valid_2_in = loss_to_lrd_valid_in_2;
+                lr_d_data_in = loss_to_lrd_data_in;
+                lr_d_valid_in = loss_to_lrd_valid_in;
 
                 // connect lr_d outputs to vpu output
-                vpu_data_out_1 = lr_d_data_1_out;
-                vpu_data_out_2 = lr_d_data_2_out;
-                vpu_valid_out_1 = lr_d_valid_1_out;
-                vpu_valid_out_2 = lr_d_valid_2_out;
+                vpu_data_out = lr_d_data_out;
+                vpu_valid_out = lr_d_valid_out;
             end else begin
                 // disable inputs
-                lr_d_data_1_in = loss_to_lrd_data_in_1;
-                lr_d_data_2_in = loss_to_lrd_data_in_2;
-                lr_d_valid_1_in = loss_to_lrd_valid_in_1;
-                lr_d_valid_2_in = loss_to_lrd_valid_in_2;
+                lr_d_data_in = loss_to_lrd_data_in;
+                lr_d_valid_in = loss_to_lrd_valid_in;
 
                 // connect intermediate values to vpu output
-                vpu_data_out_1 = loss_to_lrd_data_in_1;
-                vpu_data_out_2 = loss_to_lrd_data_in_2;
-                vpu_valid_out_1 = loss_to_lrd_valid_in_1;
-                vpu_valid_out_2 = loss_to_lrd_valid_in_2;
+                vpu_data_out = loss_to_lrd_data_in;
+                vpu_valid_out = loss_to_lrd_valid_in;
             end
         end
     end
 
-    // sequential logic to cache last H???
+    // sequential logic to cache last H
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            last_H_data_1_in <= 0;
-            last_H_data_2_in <= 0;
-            last_H_data_1_out <= 0;
-            last_H_data_2_out <= 0;
+            last_H_data_out <= '0;
         end else begin
             if (vpu_data_pathway[1]) begin
-                last_H_data_1_out <= last_H_data_1_in;
-                last_H_data_2_out <= last_H_data_2_in;
+                last_H_data_out <= last_H_data_in;
             end else begin
-                last_H_data_1_out <= 0;
-                last_H_data_2_out <= 0;
+                last_H_data_out <= '0;
             end 
         end
     end
-
-
 
 endmodule

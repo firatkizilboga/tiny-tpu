@@ -1,6 +1,3 @@
-`timescale 1ns/1ps
-`default_nettype none
-
 module tpu #(
     parameter int SYSTOLIC_ARRAY_WIDTH = 2
 )(
@@ -54,15 +51,17 @@ module tpu #(
     logic [SYSTOLIC_ARRAY_WIDTH-1:0] sys_valid_out;
 
     // VPU internal output wires
-    logic [15:0] vpu_data_out_1;
-    logic [15:0] vpu_data_out_2;
-    logic vpu_valid_out_1;
-    logic vpu_valid_out_2;
+    logic signed [SYSTOLIC_ARRAY_WIDTH-1:0][15:0] vpu_data_out;
+    logic [SYSTOLIC_ARRAY_WIDTH-1:0] vpu_valid_out;
 
-    assign ub_wr_data_in[0] = vpu_data_out_1;
-    assign ub_wr_data_in[1] = vpu_data_out_2;
-    assign ub_wr_valid_in[0] = vpu_valid_out_1;
-    assign ub_wr_valid_in[1] = vpu_valid_out_2;
+    // Connect VPU outputs to UB write inputs
+    // Assuming 1-to-1 mapping
+    generate
+        for (genvar i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin : gen_ub_wr_conn
+            assign ub_wr_data_in[i] = vpu_data_out[i];
+            assign ub_wr_valid_in[i] = vpu_valid_out[i];
+        end
+    endgenerate
     
     unified_buffer #(
         .SYSTOLIC_ARRAY_WIDTH(SYSTOLIC_ARRAY_WIDTH)
@@ -142,7 +141,22 @@ module tpu #(
         .sys_mode(sys_mode)
     );
 
-    vpu vpu_inst (
+    // Cast the UB outputs to signed arrays for VPU compat
+    logic signed [SYSTOLIC_ARRAY_WIDTH-1:0][15:0] ub_rd_bias_data_signed;
+    logic signed [SYSTOLIC_ARRAY_WIDTH-1:0][15:0] ub_rd_Y_data_signed;
+    logic signed [SYSTOLIC_ARRAY_WIDTH-1:0][15:0] ub_rd_H_data_signed;
+    
+    generate
+        for (genvar i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin : gen_casts
+            assign ub_rd_bias_data_signed[i] = $signed(ub_rd_bias_data_out[i]);
+            assign ub_rd_Y_data_signed[i]    = $signed(ub_rd_Y_data_out[i]);
+            assign ub_rd_H_data_signed[i]    = $signed(ub_rd_H_data_out[i]);
+        end
+    endgenerate
+
+    vpu #(
+        .N(SYSTOLIC_ARRAY_WIDTH)
+    ) vpu_inst (
         .clk(clk),
         .rst(rst),
         .sys_mode(sys_mode),
@@ -153,39 +167,29 @@ module tpu #(
         .vpu_data_pathway(vpu_data_pathway), // 4-bits to signify which modules to route the inputs to (1 bit for each module)
 
         // Inputs from systolic array (using array indices)
-        .vpu_data_in_1(sys_data_out[0]),
-        .vpu_data_in_2(sys_data_out[1]),
-        .vpu_valid_in_1(sys_valid_out[0]),
-        .vpu_valid_in_2(sys_valid_out[1]),
+        .vpu_data_in(sys_data_out),
+        .vpu_valid_in(sys_valid_out),
 
         // Inputs from UB
-        .bias_scalar_in_1(ub_rd_bias_data_out[0]),
-        .bias_scalar_in_2(ub_rd_bias_data_out[1]),
+        .bias_scalar_in(ub_rd_bias_data_signed),
         .lr_leak_factor_in(vpu_leak_factor_in),
-        .Y_in_1(ub_rd_Y_data_out[0]),
-        .Y_in_2(ub_rd_Y_data_out[1]),
+        .Y_in(ub_rd_Y_data_signed),
         .inv_batch_size_times_two_in(inv_batch_size_times_two_in),
-        .H_in_1(ub_rd_H_data_out[0]),
-        .H_in_2(ub_rd_H_data_out[1]),
+        .H_in(ub_rd_H_data_signed),
 
         // Outputs to UB
-        .vpu_data_out_1(vpu_data_out_1),
-        .vpu_data_out_2(vpu_data_out_2),
-        .vpu_valid_out_1(vpu_valid_out_1),
-        .vpu_valid_out_2(vpu_valid_out_2)
+        .vpu_data_out(vpu_data_out),
+        .vpu_valid_out(vpu_valid_out)
     ); 
-    // DEBUG: Trace TPU level signals
+
     // DEBUG: Trace TPU level signals
     always @(posedge clk) begin
-        if (sys_valid_out[0] || sys_valid_out[1]) begin
-             $display("[TPU] t=%0t: sys_valid_out in TPU scope=[%b,%b]", $time, sys_valid_out[0], sys_valid_out[1]);
-        end else begin
-             // Print periodically to ensure tpu module is active
-             if ($time % 10000 == 0) $display("[TPU] t=%0t: sys_valid_out is ZERO", $time);
-        end
+        if (sys_valid_out != 0) begin
+             $display("[TPU] t=%0t: sys_valid_out!=0 (some bits set)", $time);
+        end 
 
-        if (vpu_valid_out_1 || vpu_valid_out_2) begin
-             $display("[TPU] t=%0t: vpu_valid_out=[%b,%b]", $time, vpu_valid_out_1, vpu_valid_out_2);
+        if (vpu_valid_out != 0) begin
+             $display("[TPU] t=%0t: vpu_valid_out!=0 (some bits set)", $time);
         end
     end
 
