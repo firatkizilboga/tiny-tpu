@@ -27,7 +27,8 @@ module tpu #(
 
     input logic sys_switch_in,
     input logic [15:0] vpu_leak_factor_in,
-    input logic [15:0] inv_batch_size_times_two_in
+    input logic [15:0] inv_batch_size_times_two_in,
+    input logic [1:0] sys_mode
 );
     // UB internal output wires
     logic [15:0] ub_wr_data_in [0:SYSTOLIC_ARRAY_WIDTH-1];
@@ -58,8 +59,8 @@ module tpu #(
     logic [15:0] ub_rd_H_data_out_1;
 
     // Systolic array internal output wires
-    logic [15:0] sys_data_out_21;
-    logic [15:0] sys_data_out_22;
+    logic signed [31:0] sys_data_out_21;
+    logic signed [31:0] sys_data_out_22;
     logic sys_valid_out_21;
     logic sys_valid_out_22;
 
@@ -151,12 +152,17 @@ module tpu #(
         .sys_switch_in(sys_switch_in),          // switch signal copies weight from shadow buffer to active buffer. propagates from top left to bottom right
 
         .ub_rd_col_size_in(ub_rd_col_size_out),
-        .ub_rd_col_size_valid_in(ub_rd_col_size_valid_out)
+        .ub_rd_col_size_valid_in(ub_rd_col_size_valid_out),
+        .sys_mode(sys_mode)
     );
 
     vpu vpu_inst (
         .clk(clk),
         .rst(rst),
+        .sys_mode(sys_mode),
+        .requant_scale(16'b0), // TODO: Wire these out
+        .requant_shift(16'b0), // TODO: Wire these out
+        .requant_zero_point(16'b0), // TODO: Wire these out
 
         .vpu_data_pathway(vpu_data_pathway), // 4-bits to signify which modules to route the inputs to (1 bit for each module)
 

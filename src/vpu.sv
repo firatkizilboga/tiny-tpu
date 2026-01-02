@@ -21,10 +21,16 @@ module vpu (
     input logic rst,
 
     input logic [3:0] vpu_data_pathway, // 4-bits to signify which modules to route the inputs to (1 bit for each module)
+    input logic [1:0] sys_mode,
+
+    // Requantization parameters
+    input logic [15:0] requant_scale,
+    input logic [15:0] requant_shift,
+    input logic [15:0] requant_zero_point,
 
     // Inputs from systolic array
-    input logic signed [15:0] vpu_data_in_1,
-    input logic signed [15:0] vpu_data_in_2,
+    input logic signed [31:0] vpu_data_in_1,
+    input logic signed [31:0] vpu_data_in_2,
     input logic vpu_valid_in_1,
     input logic vpu_valid_in_2,
 
@@ -37,13 +43,17 @@ module vpu (
     input logic signed [15:0] inv_batch_size_times_two_in,  // For loss modules
     input logic signed [15:0] H_in_1,                       // For leaky relu derivative modules
     input logic signed [15:0] H_in_2,                       // For leaky relu derivative modules 
-
+    
     // Outputs to UB
     output logic signed [15:0] vpu_data_out_1,
     output logic signed [15:0] vpu_data_out_2,
     output logic vpu_valid_out_1,
     output logic vpu_valid_out_2
 );
+
+    // Requantized inputs (from 32-bit sys array output to 16-bit VPU pipeline)
+    logic signed [15:0] requant_out_1;
+    logic signed [15:0] requant_out_2;
 
     // bias
     logic [15:0] bias_data_1_in; 
@@ -209,11 +219,27 @@ module vpu (
             lr_d_valid_1_in = 1'b0;
             lr_d_valid_2_in = 1'b0;
         end else begin
+            // Requantization Stage
+            // Scale, Shift, Saturation
+            // Simplified for now: just casting to 16-bit for legacy/test
+            // TODO: Implement full scale/shift logic based on sys_mode
+            if (sys_mode == 2'b00) begin 
+               // Q8.8 Mode (Result is effectively Q16.16)
+               // Shift right by 8 to get back to Q8.8 (16-bit)
+               requant_out_1 = vpu_data_in_1 >>> 8;
+               requant_out_2 = vpu_data_in_2 >>> 8;
+            end else begin
+               // Integer Modes (INT16, INT8, INT4)
+               // For now, assume direct cast (no scaling applied yet)
+               requant_out_1 = vpu_data_in_1[15:0];
+               requant_out_2 = vpu_data_in_2[15:0];
+            end
+
             // bias module
             if(vpu_data_pathway[3]) begin
                 // connect vpu inputs to bias module
-                bias_data_1_in = vpu_data_in_1;
-                bias_data_2_in = vpu_data_in_2;
+                bias_data_1_in = requant_out_1;
+                bias_data_2_in = requant_out_2;
                 bias_valid_1_in = vpu_valid_in_1;
                 bias_valid_2_in = vpu_valid_in_2;
 
@@ -230,8 +256,8 @@ module vpu (
                 bias_valid_2_in = 1'b0;
 
                 // connect vpu input to intermediate values
-                b_to_lr_data_in_1 = vpu_data_in_1;
-                b_to_lr_data_in_2 = vpu_data_in_2;
+                b_to_lr_data_in_1 = requant_out_1;
+                b_to_lr_data_in_2 = requant_out_2;
                 b_to_lr_valid_in_1 = vpu_valid_in_1;
                 b_to_lr_valid_in_2 = vpu_valid_in_2;
             end

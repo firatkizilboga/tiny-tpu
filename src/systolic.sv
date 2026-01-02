@@ -13,8 +13,8 @@ module systolic #(
     input logic [15:0] sys_data_in_21,
     input logic sys_start,    // start signal
 
-    output logic [15:0] sys_data_out_21,
-    output logic [15:0] sys_data_out_22,
+    output logic signed [31:0] sys_data_out_21,
+    output logic signed [31:0] sys_data_out_22,
     output wire sys_valid_out_21, 
     output wire sys_valid_out_22,
 
@@ -27,16 +27,18 @@ module systolic #(
     input logic sys_switch_in,               // switch signal copies weight from shadow buffer to active buffer. propagates from top left to bottom right
 
     input logic [15:0] ub_rd_col_size_in,
-    input logic ub_rd_col_size_valid_in
+    input logic ub_rd_col_size_valid_in,
+
+    input logic [1:0] sys_mode
 );
 
     // input_out for each PE (left to right)
     logic [15:0] pe_input_out_11;
     logic [15:0] pe_input_out_21;
 
-    // psum_out for each PE (top to bottom)
-    logic [15:0] pe_psum_out_11;
-    logic [15:0] pe_psum_out_12;
+    // psum_out for each PE (top to bottom) - WIDENED TO 32-BIT
+    logic signed [31:0] pe_psum_out_11;
+    logic signed [31:0] pe_psum_out_12;
 
     // weight_out for each PE (top to bottom)
     logic [15:0] pe_weight_out_11;
@@ -66,11 +68,12 @@ module systolic #(
         .pe_switch_out(pe_switch_out_11),
 
         .pe_input_in(sys_data_in_11),
-        .pe_psum_in(16'b0),
+        .pe_psum_in(32'b0),
         .pe_weight_in(sys_weight_in_11),
         .pe_input_out(pe_input_out_11),
         .pe_psum_out(pe_psum_out_11),
-        .pe_weight_out(pe_weight_out_11)
+        .pe_weight_out(pe_weight_out_11),
+        .sys_mode(sys_mode)
     );
 
     pe pe12 (
@@ -86,11 +89,12 @@ module systolic #(
         .pe_switch_out(pe_switch_out_12),
 
         .pe_input_in(pe_input_out_11),
-        .pe_psum_in(16'b0),
+        .pe_psum_in(32'b0),
         .pe_weight_in(sys_weight_in_12),
         .pe_input_out(),
         .pe_psum_out(pe_psum_out_12),
-        .pe_weight_out(pe_weight_out_12)
+        .pe_weight_out(pe_weight_out_12),
+        .sys_mode(sys_mode)
     );
 
     pe pe21 (
@@ -110,7 +114,8 @@ module systolic #(
         .pe_weight_in(pe_weight_out_11),
         .pe_input_out(pe_input_out_21),
         .pe_psum_out(sys_data_out_21),
-        .pe_weight_out()
+        .pe_weight_out(),
+        .sys_mode(sys_mode)
     );
 
     pe pe22 ( // connect this to pe_valid out of pe 21? 
@@ -130,7 +135,8 @@ module systolic #(
         .pe_weight_in(pe_weight_out_12),
         .pe_input_out(),
         .pe_psum_out(sys_data_out_22),
-        .pe_weight_out()
+        .pe_weight_out(),
+        .sys_mode(sys_mode)
     );
 
     always@(posedge clk or posedge rst) begin
