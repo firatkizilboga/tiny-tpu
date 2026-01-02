@@ -6,13 +6,20 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
+from test_utils import PackedArrayDriver
 
 FRAC_BITS = 8
+N_LANES = 2
 
 def to_fixed(val, frac_bits=FRAC_BITS):
     """convert python float to signed 16-bit fixed-point (Q8.8)."""
     scaled = int(round(val * (1 << frac_bits)))
     return scaled & 0xFFFF
+
+def to_fixed_32(val, frac_bits=16):
+    """convert python float to signed 32-bit fixed-point (for VPU input which is sys array output)."""
+    scaled = int(round(val * (1 << frac_bits)))
+    return scaled & 0xFFFFFFFF
 
 def from_fixed(val, frac_bits=FRAC_BITS):
     """convert signed 16-bit fixed-point to python float."""
@@ -90,8 +97,28 @@ async def test_vector_unit(dut):
     cocotb.start_soon(clock.start())
     await RisingEdge(dut.clk)
 
+    # Initialize drivers for packed array signals
+    # vpu_data_in is [N-1:0][31:0] - 32-bit per lane
+    data_in_drv = PackedArrayDriver(dut.vpu_data_in, 32, N_LANES)
+    # vpu_valid_in is [N-1:0] - 1-bit per lane
+    valid_in_drv = PackedArrayDriver(dut.vpu_valid_in, 1, N_LANES)
+    # bias_scalar_in is [N-1:0][15:0] - 16-bit per lane
+    bias_drv = PackedArrayDriver(dut.bias_scalar_in, 16, N_LANES)
+    # Y_in is [N-1:0][15:0] - 16-bit per lane
+    Y_drv = PackedArrayDriver(dut.Y_in, 16, N_LANES)
+    # H_in is [N-1:0][15:0] - 16-bit per lane
+    H_drv = PackedArrayDriver(dut.H_in, 16, N_LANES)
+
+    # Initialize all to 0
+    data_in_drv.set_all([0, 0])
+    valid_in_drv.set_all([0, 0])
+    bias_drv.set_all([0, 0])
+    Y_drv.set_all([0, 0])
+    H_drv.set_all([0, 0])
+
     # Reset
     dut.rst.value = 1
+    dut.sys_mode.value = 0  # Q8.8 mode
     await RisingEdge(dut.clk)
 
     ### Test forward pass pathway
@@ -99,21 +126,19 @@ async def test_vector_unit(dut):
     dut.rst.value = 0
     dut.vpu_data_pathway.value = 0b1100 
     
-    dut.vpu_valid_in_1.value = 1
-    dut.vpu_valid_in_2.value = 1
+    valid_in_drv.set_all([1, 1])
 
     # Comes from UB
-    dut.bias_scalar_in_1.value = to_fixed(B1[0])
-    dut.bias_scalar_in_2.value = to_fixed(B1[1])       
+    bias_drv.set_all([to_fixed(B1[0]), to_fixed(B1[1])])
     dut.lr_leak_factor_in.value = to_fixed(0.5)
+    
     for z in Z1_pre: # Load in z rows one at a time
-        dut.vpu_data_in_1.value = to_fixed(z[0])
-        dut.vpu_data_in_2.value = to_fixed(z[1])
+        # VPU expects 32-bit input (Q16.16), then does >>> 8 for Q8.8 mode
+        data_in_drv.set_all([to_fixed_32(z[0]), to_fixed_32(z[1])])
         await RisingEdge(dut.clk)
-    dut.vpu_data_in_1.value = to_fixed(0) # reset everything
-    dut.vpu_data_in_2.value = to_fixed(0)
-    dut.vpu_valid_in_1.value = 0
-    dut.vpu_valid_in_2.value = 0
+    
+    data_in_drv.set_all([to_fixed_32(0), to_fixed_32(0)]) # reset everything
+    valid_in_drv.set_all([0, 0])
     await ClockCycles(dut.clk, 10)
 
 
@@ -124,46 +149,46 @@ async def test_vector_unit(dut):
 
     dut.rst.value = 0
     dut.vpu_data_pathway.value = 0b1111
-    dut.vpu_valid_in_1.value = 1
-    dut.vpu_valid_in_2.value = 1
+    valid_in_drv.set_all([1, 1])
 
-    dut.bias_scalar_in_1.value = to_fixed(B2[0])
-    # dut.bias_scalar_in_1.value = to_fixed(B2[1])
+    bias_drv.set(0, to_fixed(B2[0]))
+    # bias_drv.set(1, to_fixed(B2[1]))
     dut.lr_leak_factor_in.value = to_fixed(0.5)
     dut.inv_batch_size_times_two_in.value = to_fixed(2/4)  # 2/N where N is our batch size which is 4
-    dut.vpu_data_in_1.value = to_fixed(Z2_pre[0][0])
-    # dut.vpu_data_in_2.value = to_fixed(z[1])
+    
+    data_in_drv.set(0, to_fixed_32(Z2_pre[0][0]))
+    # data_in_drv.set(1, to_fixed(z[1]))
     await RisingEdge(dut.clk)
 
-    dut.vpu_data_in_1.value = to_fixed(Z2_pre[1][0])
-    # dut.vpu_data_in_2.value = to_fixed(z[1])
+    data_in_drv.set(0, to_fixed_32(Z2_pre[1][0]))
+    # data_in_drv.set(1, to_fixed(z[1]))
     await RisingEdge(dut.clk)
 
     ## START PUTTING TARGET VALUES HERE??? IDK? if not, then shift it down by 1 clk cycle
-    dut.vpu_data_in_1.value = to_fixed(Z2_pre[2][0])
-    # dut.vpu_data_in_2.value = to_fixed(z[1])
-    dut.Y_in_1.value = to_fixed(Y[0][0])
-    # dut.Y_in_2.value = to_fixed(Y[0][0])
+    data_in_drv.set(0, to_fixed_32(Z2_pre[2][0]))
+    # data_in_drv.set(1, to_fixed(z[1]))
+    Y_drv.set(0, to_fixed(Y[0][0]))
+    # Y_drv.set(1, to_fixed(Y[0][0]))
     await RisingEdge(dut.clk)
 
 
-    dut.vpu_data_in_1.value = to_fixed(Z2_pre[3][0])
-    # dut.vpu_data_in_2.value = to_fixed(z[1])
-    dut.Y_in_1.value = to_fixed(Y[1][0])
-    # dut.Y_in_2.value = to_fixed(Y[0][0])
+    data_in_drv.set(0, to_fixed_32(Z2_pre[3][0]))
+    # data_in_drv.set(1, to_fixed(z[1]))
+    Y_drv.set(0, to_fixed(Y[1][0]))
+    # Y_drv.set(1, to_fixed(Y[0][0]))
     await RisingEdge(dut.clk)
 
-    dut.Y_in_1.value = to_fixed(Y[2][0])
-    # dut.Y_in_2.value = to_fixed(Y[0][0])
-    dut.vpu_valid_in_1.value = 0
+    Y_drv.set(0, to_fixed(Y[2][0]))
+    # Y_drv.set(1, to_fixed(Y[0][0]))
+    valid_in_drv.set(0, 0)
     await RisingEdge(dut.clk)
 
-    dut.Y_in_1.value = to_fixed(Y[3][0])
-    # dut.Y_in_2.value = to_fixed(Y[0][0])
+    Y_drv.set(0, to_fixed(Y[3][0]))
+    # Y_drv.set(1, to_fixed(Y[0][0]))
     await RisingEdge(dut.clk)
     
-    dut.vpu_valid_in_1.value = 0
-    # dut.vpu_valid_in_2.value = 0
+    valid_in_drv.set(0, 0)
+    # valid_in_drv.set(1, 0)
     await ClockCycles(dut.clk, 10)
 
 
@@ -183,47 +208,47 @@ async def test_vector_unit(dut):
     await RisingEdge(dut.clk)
 
     # WE NEED TO INPUT A dL/dH here. and in the same clk cycle, we also need to input an H value, which becomes dH/dZ. 
-    dut.vpu_data_in_1.value = to_fixed(dL_by_H1[0][0])
-    dut.H_in_1.value = to_fixed(H1[0][0])
+    data_in_drv.set(0, to_fixed_32(dL_by_H1[0][0]))
+    H_drv.set(0, to_fixed(H1[0][0]))
 
-    dut.vpu_valid_in_1.value = 1 
-    dut.vpu_valid_in_2.value = 0
+    valid_in_drv.set(0, 1)
+    valid_in_drv.set(1, 0)
 
     await RisingEdge(dut.clk)
-    dut.vpu_data_in_1.value = to_fixed(dL_by_H1[1][0])
-    dut.vpu_data_in_2.value = to_fixed(dL_by_H1[0][1])
+    data_in_drv.set(0, to_fixed_32(dL_by_H1[1][0]))
+    data_in_drv.set(1, to_fixed_32(dL_by_H1[0][1]))
 
-    dut.H_in_1.value = to_fixed(H1[1][0])
-    dut.vpu_valid_in_1.value = 1
-    dut.vpu_valid_in_2.value = 1
+    H_drv.set(0, to_fixed(H1[1][0]))
+    valid_in_drv.set(0, 1)
+    valid_in_drv.set(1, 1)
     await RisingEdge(dut.clk)
 
-    dut.vpu_data_in_1.value = to_fixed(dL_by_H1[2][0])
-    dut.vpu_data_in_2.value = to_fixed(dL_by_H1[1][1])
+    data_in_drv.set(0, to_fixed_32(dL_by_H1[2][0]))
+    data_in_drv.set(1, to_fixed_32(dL_by_H1[1][1]))
 
-    dut.H_in_1.value = to_fixed(H1[2][0])
-    dut.H_in_2.value = to_fixed(H1[1][1])
+    H_drv.set(0, to_fixed(H1[2][0]))
+    H_drv.set(1, to_fixed(H1[1][1]))
 
-    dut.vpu_valid_in_1.value = 1
-    dut.vpu_valid_in_2.value = 1
+    valid_in_drv.set(0, 1)
+    valid_in_drv.set(1, 1)
     await RisingEdge(dut.clk)
 
-    dut.vpu_data_in_1.value = to_fixed(dL_by_H1[3][0])
-    dut.vpu_data_in_2.value = to_fixed(dL_by_H1[2][1])
+    data_in_drv.set(0, to_fixed_32(dL_by_H1[3][0]))
+    data_in_drv.set(1, to_fixed_32(dL_by_H1[2][1]))
 
-    dut.H_in_1.value = to_fixed(H1[3][0])
-    dut.H_in_2.value = to_fixed(H1[2][1])
+    H_drv.set(0, to_fixed(H1[3][0]))
+    H_drv.set(1, to_fixed(H1[2][1]))
 
-    dut.vpu_valid_in_1.value = 1
-    dut.vpu_valid_in_2.value = 1
+    valid_in_drv.set(0, 1)
+    valid_in_drv.set(1, 1)
     await RisingEdge(dut.clk)
 
-    dut.vpu_data_in_2.value = to_fixed(dL_by_H1[3][1])
+    data_in_drv.set(1, to_fixed_32(dL_by_H1[3][1]))
 
-    dut.H_in_2.value = to_fixed(H1[3][1])
+    H_drv.set(1, to_fixed(H1[3][1]))
 
-    dut.vpu_valid_in_1.value = 0
-    dut.vpu_valid_in_2.value = 1
+    valid_in_drv.set(0, 0)
+    valid_in_drv.set(1, 1)
 
 
     await ClockCycles(dut.clk, 10)

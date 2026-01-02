@@ -49,11 +49,10 @@ module vpu #(
     // Requantized inputs (from 32-bit sys array output to 16-bit VPU pipeline)
     logic signed [N-1:0][15:0] requant_out;
 
-    genvar j;
+    genvar i;
     generate
-        for (j = 0; j < N; j++) begin : gen_requant
-            assign requant_out[j] = (sys_mode == 2'b00) ? (vpu_data_in[j] >>> 8) : vpu_data_in[j][15:0];
-
+        for (i = 0; i < N; i++) begin : gen_requant
+            assign requant_out[i] = (sys_mode == 2'b00) ? (vpu_data_in[i] >>> 8) : vpu_data_in[i][15:0];
         end
     endgenerate
 
@@ -98,47 +97,58 @@ module vpu #(
     logic signed [N-1:0][15:0] last_H_data_in;
     logic signed [N-1:0][15:0] last_H_data_out;
 
-    bias_parent #(.N(N)) bias_parent_inst (  
-        .clk(clk),
-        .rst(rst),
-        .bias_sys_data_in(bias_data_in),    // input
-        .bias_sys_valid_in(bias_valid_in),  // input
-        .bias_scalar_in(bias_scalar_in),    // input from UB
-        .bias_Z_valid_out(bias_valid_out),  // output
-        .bias_z_data_out(bias_z_data_out)   // output
-    );
+    // Instantiate Child Modules in Parallel Loops
+    generate
+        for (i=0; i<N; i++) begin : bias_gen
+            bias_child bias_inst (  
+                .clk(clk),
+                .rst(rst),
+                .bias_sys_data_in(bias_data_in[i]),
+                .bias_sys_valid_in(bias_valid_in[i]),
+                .bias_scalar_in(bias_scalar_in[i]),
+                .bias_Z_valid_out(bias_valid_out[i]),
+                .bias_z_data_out(bias_z_data_out[i])
+            );
+        end
 
-    leaky_relu_parent #(.N(N)) leaky_relu_parent_inst (
-        .clk(clk),
-        .rst(rst),
-        .lr_data_in(lr_data_in),                // input
-        .lr_valid_in(lr_valid_in),              // input
-        .lr_leak_factor_in(lr_leak_factor_in),  // input from UB
-        .lr_data_out(lr_data_out),              // output 
-        .lr_valid_out(lr_valid_out)             // output
-    );
+        for (i=0; i<N; i++) begin : lr_gen
+            leaky_relu_child leaky_relu_inst (
+                .clk(clk),
+                .rst(rst),
+                .lr_data_in(lr_data_in[i]),
+                .lr_valid_in(lr_valid_in[i]),
+                .lr_leak_factor_in(lr_leak_factor_in), // Shared
+                .lr_data_out(lr_data_out[i]), 
+                .lr_valid_out(lr_valid_out[i])
+            );
+        end
 
-    loss_parent #(.N(N)) loss_parent_inst (
-        .clk(clk),
-        .rst(rst),
-        .H_in(loss_data_in),        // input
-        .Y_in(Y_in),                // input from UB
-        .valid_in(loss_valid_in),   // input
-        .inv_batch_size_times_two_in(inv_batch_size_times_two_in),
-        .gradient_out(loss_data_out), // output
-        .valid_out(loss_valid_out)
-    );
+        for (i=0; i<N; i++) begin : loss_gen
+            loss_child loss_inst (
+                .clk(clk),
+                .rst(rst),
+                .H_in(loss_data_in[i]),
+                .Y_in(Y_in[i]),
+                .valid_in(loss_valid_in[i]),
+                .inv_batch_size_times_two_in(inv_batch_size_times_two_in), // Shared
+                .gradient_out(loss_data_out[i]),
+                .valid_out(loss_valid_out[i])
+            );
+        end
 
-    leaky_relu_derivative_parent #(.N(N)) leaky_relu_derivative_parent_inst (
-        .clk(clk),
-        .rst(rst),
-        .lr_d_data_in(lr_d_data_in),    // input
-        .lr_d_valid_in(lr_d_valid_in),  // input
-        .lr_d_H_in(lr_d_H_in),          // input from UB or temp 'last H matrix' cache
-        .lr_leak_factor_in(lr_leak_factor_in),
-        .lr_d_data_out(lr_d_data_out),      // output
-        .lr_d_valid_out(lr_d_valid_out)     // output
-    );
+        for (i=0; i<N; i++) begin : lrd_gen
+            leaky_relu_derivative_child leaky_relu_derivative_inst (
+                .clk(clk),
+                .rst(rst),
+                .lr_d_data_in(lr_d_data_in[i]),
+                .lr_d_valid_in(lr_d_valid_in[i]),
+                .lr_d_H_data_in(lr_d_H_in[i]),
+                .lr_leak_factor_in(lr_leak_factor_in), // Shared
+                .lr_d_data_out(lr_d_data_out[i]),
+                .lr_d_valid_out(lr_d_valid_out[i])
+            );
+        end
+    endgenerate
 
     always @(*) begin
         if (rst) begin
@@ -155,10 +165,6 @@ module vpu #(
             lr_d_data_in = '0;
             lr_d_valid_in = '0;
         end else begin
-            // Requantization Stage is now handled by the generate block above
-            // just use requant_out signal
-
-
             // bias module
             if(vpu_data_pathway[3]) begin
                 // connect vpu inputs to bias module

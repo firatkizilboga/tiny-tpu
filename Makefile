@@ -20,20 +20,18 @@ export PYGPI_PYTHON_BIN=$(shell which python3)
 # ********** IF YOU HAVE A NEW VERILOG FILE, ADD IT TO THE SOURCES VARIABLE
 SOURCES = src/pe.sv \
           src/leaky_relu_child.sv \
-          src/leaky_relu_parent.sv \
           src/leaky_relu_derivative_child.sv \
-          src/leaky_relu_derivative_parent.sv \
           src/systolic.sv \
           src/bias_child.sv \
-          src/bias_parent.sv \
           src/fixedpoint.sv \
           src/control_unit.sv \
           src/unified_buffer.sv \
           src/vpu.sv \
-          src/loss_parent.sv \
 		  src/loss_child.sv \
 		  src/tpu.sv \
-		  src/gradient_descent.sv
+		  src/gradient_descent.sv \
+		  src/input_skew_buffer.sv \
+		  src/output_deskew_buffer.sv
 
 # MODIFY 1) variable next to -s 
 # MODIFY 2) variable next to $(SOURCES)
@@ -48,65 +46,17 @@ test_pe: $(SIM_BUILD_DIR)
 	! grep failure results.xml
 	mv pe.vcd waveforms/ 2>/dev/null || true
 
-
-
 test_systolic: $(SIM_BUILD_DIR)
 	$(IVERILOG) -o $(SIM_VVP) -s systolic -s dump -g2012 $(SOURCES) test/dump_systolic.sv
 	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_systolic $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
 	! grep failure results.xml
 	mv systolic.vcd waveforms/ 2>/dev/null || true
 
-
-
-
-
-
-
-
-
-
-
 test_unified_buffer: $(SIM_BUILD_DIR)
 	$(IVERILOG) -o $(SIM_VVP) -s unified_buffer -s dump -g2012 $(SOURCES) test/dump_unified_buffer.sv
 	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_unified_buffer $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
 	! grep failure results.xml
 	mv unified_buffer.vcd waveforms/ 2>/dev/null || true
-
-# Loss module test
-
-
-
-test_loss_parent: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s loss_parent -s dump -g2012 $(SOURCES) test/dump_loss_parent.sv
-	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_loss_parent $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
-	! grep failure results.xml
-	mv loss_parent.vcd waveforms/ 2>/dev/null || true
-
-# Leaky ReLU module tests
-
-
-test_leaky_relu_parent: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_parent -s dump -g2012 $(SOURCES) test/dump_leaky_relu_parent.sv
-	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_leaky_relu_parent $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
-	! grep failure results.xml
-	mv leaky_relu_parent.vcd waveforms/ 2>/dev/null || true
-
-
-
-test_leaky_relu_derivative_parent: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_derivative_parent -s dump -g2012 $(SOURCES) test/dump_leaky_relu_derivative_parent.sv
-	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_leaky_relu_derivative_parent $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
-	! grep failure results.xml
-	mv leaky_relu_derivative_parent.vcd waveforms/ 2>/dev/null || true
-
-# Bias module tests
-
-
-test_bias_parent: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s bias_parent -s dump -g2012 $(SOURCES) test/dump_bias_parent.sv
-	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_bias_parent $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
-	! grep failure results.xml
-	mv bias_parent.vcd waveforms/ 2>/dev/null || true
 
 # Vector Processing unit test
 test_vpu: $(SIM_BUILD_DIR)
@@ -145,10 +95,10 @@ test_multi_precision: $(SIM_BUILD_DIR)
 	! grep failure results.xml
 	mv tpu.vcd waveforms/multi_precision.vcd 2>/dev/null || true
 
-test_all: test_pe test_systolic test_unified_buffer test_loss_parent test_leaky_relu_parent test_leaky_relu_derivative_parent test_bias_parent test_vpu test_tpu test_gradient_descent test_multi_precision test_int8_e2e test_int4_e2e
+test_all: test_pe test_systolic test_unified_buffer test_vpu test_tpu test_gradient_descent test_multi_precision test_int8_e2e test_int4_e2e
 
 
-# ============ DO NOT MODIFY BELOW THIS LINE ==============
+# ============ DO NOT MODIFY BELOW THIS LINE ============== 
 
 # Create simulation build directory and waveforms directory
 $(SIM_BUILD_DIR):
@@ -157,7 +107,7 @@ $(SIM_BUILD_DIR):
 
 # Waveform viewing
 show_%: waveforms/%.vcd waveforms/%.gtkw
-	gtkwave $^
+	gtkwave $^ 
 
 # Linting
 lint:

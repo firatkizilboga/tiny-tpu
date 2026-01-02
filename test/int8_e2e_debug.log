@@ -1,0 +1,304 @@
+iverilog -o sim_build/sim.vvp -s tpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_derivative_child.sv src/systolic.sv src/bias_child.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv src/input_skew_buffer.sv src/output_deskew_buffer.sv test/dump_tpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_int8_e2e vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767368622
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_int8_e2e.test_int8_e2e (1/1)
+                                                            INT8 Packed Mode E2E Test - Debug with simple known values
+    10.00ns INFO     cocotb.tpu                         DEBUG MODE: Using exact values from failing random test
+    10.00ns INFO     cocotb.tpu                         Expected Row0: Col0=10128, Col1=5479
+    10.00ns INFO     cocotb.tpu                         Input A (2 rows):
+    10.00ns INFO     cocotb.tpu                           A[0] = [(-26,51), (-36,-114)]
+    10.00ns INFO     cocotb.tpu                           A[1] = [(10,20), (30,40)]
+    10.00ns INFO     cocotb.tpu                         Weight W:
+    10.00ns INFO     cocotb.tpu                           W[0] = [(-60,-64), (127,-79)]
+    10.00ns INFO     cocotb.tpu                           W[1] = [(-107,-70), (-112,-77)]
+    10.00ns INFO     cocotb.tpu                         Loading 2 input rows to UB...
+    10.00ns INFO     cocotb.tpu                         Writing A[0]: packed=[0xe633, 0xdc8e]
+    20.00ns INFO     cocotb.tpu                         Writing A[1]: packed=[0x0a14, 0x1e28]
+    30.00ns INFO     cocotb.tpu                         Loading weights to UB at addr 2...
+    30.00ns INFO     cocotb.tpu                         Writing W[0]: packed=[0xc4c0, 0x7fb1]
+    40.00ns INFO     cocotb.tpu                         Writing W[1]: packed=[0x95ba, 0x90b3]
+    90.00ns INFO     cocotb.tpu                          
+    90.00ns INFO     cocotb.tpu                         ================================================================================
+    90.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 1
+    90.00ns INFO     cocotb.tpu                         ================================================================================
+    90.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+    90.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0x0000 (0,0)  valid=0  switch=1
+    90.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0x0000 (0,0)  valid=0  switch=0
+    90.00ns INFO     cocotb.tpu                           WEIGHT LOADING: col0=0x95ba(-107,-70) accept=1, col1=0x90b3(-112,-77) accept=1
+    90.00ns INFO     cocotb.tpu                          --- PE[0][0] (enabled=1) ---
+    90.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=0 switch_in=1 switch_out=0
+    90.00ns INFO     cocotb.tpu                             Input:   0x0000 (0,0)
+    90.00ns INFO     cocotb.tpu                             WeightActive:   0x0000 (0,0)
+    90.00ns INFO     cocotb.tpu                             WeightInactive: 0xc4c0 (-60,-64)
+    90.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=1]
+    90.00ns INFO     cocotb.tpu                             PSUM_in:  0
+    90.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(0*-60)=0, prod_lo=(0*-64)=0
+    90.00ns INFO     cocotb.tpu                             ALU_out:  0 (prod_hi + prod_lo)
+    90.00ns INFO     cocotb.tpu                             PSUM_next: 0 (alu_out + psum_in)
+    90.00ns INFO     cocotb.tpu                             PSUM_out: 0
+    90.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+    90.00ns INFO     cocotb.tpu                           sys_data_out[0] = 0  valid=0
+    90.00ns INFO     cocotb.tpu                           sys_data_out[1] = 0  valid=0
+    90.00ns INFO     cocotb.tpu                         ================================================================================
+   100.00ns INFO     cocotb.tpu                          
+   100.00ns INFO     cocotb.tpu                         ================================================================================
+   100.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 2
+   100.00ns INFO     cocotb.tpu                         ================================================================================
+   100.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+   100.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0xe633 (-26,51)  valid=1  switch=0
+   100.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0x0000 (0,0)  valid=0  switch=1
+   100.00ns INFO     cocotb.tpu                          --- PE[0][0] (enabled=1) ---
+   100.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=0 switch_in=0 switch_out=1
+   100.00ns INFO     cocotb.tpu                             Input:   0xe633 (-26,51)
+   100.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   100.00ns INFO     cocotb.tpu                             WeightInactive: 0x95ba (-107,-70)
+   100.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   100.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   100.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(-26*-60)=1560, prod_lo=(51*-64)=-3264
+   100.00ns INFO     cocotb.tpu                             ALU_out:  -1704 (prod_hi + prod_lo)
+   100.00ns INFO     cocotb.tpu                             PSUM_next: -1704 (alu_out + psum_in)
+   100.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   100.00ns INFO     cocotb.tpu                          --- PE[0][1] (enabled=1) ---
+   100.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=0 switch_in=1 switch_out=0
+   100.00ns INFO     cocotb.tpu                             Input:   0x0000 (0,0)
+   100.00ns INFO     cocotb.tpu                             WeightActive:   0x0000 (0,0)
+   100.00ns INFO     cocotb.tpu                             WeightInactive: 0x90b3 (-112,-77)
+   100.00ns INFO     cocotb.tpu                             CurrentWeight:  0x90b3 (-112,-77) [switch=1]
+   100.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   100.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(0*-112)=0, prod_lo=(0*-77)=0
+   100.00ns INFO     cocotb.tpu                             ALU_out:  0 (prod_hi + prod_lo)
+   100.00ns INFO     cocotb.tpu                             PSUM_next: 0 (alu_out + psum_in)
+   100.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   100.00ns INFO     cocotb.tpu                          --- PE[1][0] (enabled=1) ---
+   100.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=0 switch_in=1 switch_out=0
+   100.00ns INFO     cocotb.tpu                             Input:   0x0000 (0,0)
+   100.00ns INFO     cocotb.tpu                             WeightActive:   0x0000 (0,0)
+   100.00ns INFO     cocotb.tpu                             WeightInactive: 0xc4c0 (-60,-64)
+   100.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=1]
+   100.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   100.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(0*-60)=0, prod_lo=(0*-64)=0
+   100.00ns INFO     cocotb.tpu                             ALU_out:  0 (prod_hi + prod_lo)
+   100.00ns INFO     cocotb.tpu                             PSUM_next: 0 (alu_out + psum_in)
+   100.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   100.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+   100.00ns INFO     cocotb.tpu                           sys_data_out[0] = 0  valid=0
+   100.00ns INFO     cocotb.tpu                           sys_data_out[1] = 0  valid=0
+   100.00ns INFO     cocotb.tpu                         ================================================================================
+   110.00ns INFO     cocotb.tpu                          
+   110.00ns INFO     cocotb.tpu                         ================================================================================
+   110.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 3
+   110.00ns INFO     cocotb.tpu                         ================================================================================
+   110.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+   110.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0x0a14 (10,20)  valid=1  switch=0
+   110.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0xdc8e (-36,-114)  valid=1  switch=0
+   110.00ns INFO     cocotb.tpu                          --- PE[0][0] (enabled=1) ---
+   110.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=1 switch_in=0 switch_out=0
+   110.00ns INFO     cocotb.tpu                             Input:   0x0a14 (10,20)
+   110.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   110.00ns INFO     cocotb.tpu                             WeightInactive: 0x95ba (-107,-70)
+   110.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   110.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   110.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(10*-60)=-600, prod_lo=(20*-64)=-1280
+   110.00ns INFO     cocotb.tpu                             ALU_out:  -1880 (prod_hi + prod_lo)
+   110.00ns INFO     cocotb.tpu                             PSUM_next: -1880 (alu_out + psum_in)
+   110.00ns INFO     cocotb.tpu                             PSUM_out: -1704
+   110.00ns INFO     cocotb.tpu                          --- PE[0][1] (enabled=1) ---
+   110.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=0 switch_in=0 switch_out=1
+   110.00ns INFO     cocotb.tpu                             Input:   0xe633 (-26,51)
+   110.00ns INFO     cocotb.tpu                             WeightActive:   0x90b3 (-112,-77)
+   110.00ns INFO     cocotb.tpu                             WeightInactive: 0x90b3 (-112,-77)
+   110.00ns INFO     cocotb.tpu                             CurrentWeight:  0x90b3 (-112,-77) [switch=0]
+   110.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   110.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(-26*-112)=2912, prod_lo=(51*-77)=-3927
+   110.00ns INFO     cocotb.tpu                             ALU_out:  -1015 (prod_hi + prod_lo)
+   110.00ns INFO     cocotb.tpu                             PSUM_next: -1015 (alu_out + psum_in)
+   110.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   110.00ns INFO     cocotb.tpu                          --- PE[1][0] (enabled=1) ---
+   110.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=0 switch_in=0 switch_out=1
+   110.00ns INFO     cocotb.tpu                             Input:   0xdc8e (-36,-114)
+   110.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   110.00ns INFO     cocotb.tpu                             WeightInactive: 0xc4c0 (-60,-64)
+   110.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   110.00ns INFO     cocotb.tpu                             PSUM_in:  -1704
+   110.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(-36*-60)=2160, prod_lo=(-114*-64)=7296
+   110.00ns INFO     cocotb.tpu                             ALU_out:  9456 (prod_hi + prod_lo)
+   110.00ns INFO     cocotb.tpu                             PSUM_next: 7752 (alu_out + psum_in)
+   110.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   110.00ns INFO     cocotb.tpu                          --- PE[1][1] (enabled=1) ---
+   110.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=0 switch_in=1 switch_out=0
+   110.00ns INFO     cocotb.tpu                             Input:   0x0000 (0,0)
+   110.00ns INFO     cocotb.tpu                             WeightActive:   0x0000 (0,0)
+   110.00ns INFO     cocotb.tpu                             WeightInactive: 0x7fb1 (127,-79)
+   110.00ns INFO     cocotb.tpu                             CurrentWeight:  0x7fb1 (127,-79) [switch=1]
+   110.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   110.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(0*127)=0, prod_lo=(0*-79)=0
+   110.00ns INFO     cocotb.tpu                             ALU_out:  0 (prod_hi + prod_lo)
+   110.00ns INFO     cocotb.tpu                             PSUM_next: 0 (alu_out + psum_in)
+   110.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   110.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+   110.00ns INFO     cocotb.tpu                           sys_data_out[0] = 0  valid=0
+   110.00ns INFO     cocotb.tpu                           sys_data_out[1] = 0  valid=0
+   110.00ns INFO     cocotb.tpu                         ================================================================================
+   120.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_utils.py:41: DeprecationWarning: `logic_array.integer` getter is deprecated. Use `logic_array.to_unsigned()` instead.
+                                                          full_val = signal.value.integer
+   120.00ns INFO     cocotb.tpu                          
+   120.00ns INFO     cocotb.tpu                         ================================================================================
+   120.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 4
+   120.00ns INFO     cocotb.tpu                         ================================================================================
+   120.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+   120.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0x0a14 (10,20)  valid=0  switch=0
+   120.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0x1e28 (30,40)  valid=1  switch=0
+   120.00ns INFO     cocotb.tpu                          --- PE[0][0] (enabled=1) ---
+   120.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=1 switch_in=0 switch_out=0
+   120.00ns INFO     cocotb.tpu                             Input:   0x0a14 (10,20)
+   120.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   120.00ns INFO     cocotb.tpu                             WeightInactive: 0x95ba (-107,-70)
+   120.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   120.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   120.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(10*-60)=-600, prod_lo=(20*-64)=-1280
+   120.00ns INFO     cocotb.tpu                             ALU_out:  -1880 (prod_hi + prod_lo)
+   120.00ns INFO     cocotb.tpu                             PSUM_next: -1880 (alu_out + psum_in)
+   120.00ns INFO     cocotb.tpu                             PSUM_out: -1880
+   120.00ns INFO     cocotb.tpu                          --- PE[0][1] (enabled=1) ---
+   120.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=1 switch_in=0 switch_out=0
+   120.00ns INFO     cocotb.tpu                             Input:   0x0a14 (10,20)
+   120.00ns INFO     cocotb.tpu                             WeightActive:   0x90b3 (-112,-77)
+   120.00ns INFO     cocotb.tpu                             WeightInactive: 0x90b3 (-112,-77)
+   120.00ns INFO     cocotb.tpu                             CurrentWeight:  0x90b3 (-112,-77) [switch=0]
+   120.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   120.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(10*-112)=-1120, prod_lo=(20*-77)=-1540
+   120.00ns INFO     cocotb.tpu                             ALU_out:  -2660 (prod_hi + prod_lo)
+   120.00ns INFO     cocotb.tpu                             PSUM_next: -2660 (alu_out + psum_in)
+   120.00ns INFO     cocotb.tpu                             PSUM_out: -1015
+   120.00ns INFO     cocotb.tpu                          --- PE[1][0] (enabled=1) ---
+   120.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=1 switch_in=0 switch_out=0
+   120.00ns INFO     cocotb.tpu                             Input:   0x1e28 (30,40)
+   120.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   120.00ns INFO     cocotb.tpu                             WeightInactive: 0xc4c0 (-60,-64)
+   120.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   120.00ns INFO     cocotb.tpu                             PSUM_in:  -1880
+   120.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(30*-60)=-1800, prod_lo=(40*-64)=-2560
+   120.00ns INFO     cocotb.tpu                             ALU_out:  -4360 (prod_hi + prod_lo)
+   120.00ns INFO     cocotb.tpu                             PSUM_next: -6240 (alu_out + psum_in)
+   120.00ns INFO     cocotb.tpu                             PSUM_out: 7752
+   120.00ns INFO     cocotb.tpu                          --- PE[1][1] (enabled=1) ---
+   120.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=0 switch_in=0 switch_out=1
+   120.00ns INFO     cocotb.tpu                             Input:   0xdc8e (-36,-114)
+   120.00ns INFO     cocotb.tpu                             WeightActive:   0x7fb1 (127,-79)
+   120.00ns INFO     cocotb.tpu                             WeightInactive: 0x7fb1 (127,-79)
+   120.00ns INFO     cocotb.tpu                             CurrentWeight:  0x7fb1 (127,-79) [switch=0]
+   120.00ns INFO     cocotb.tpu                             PSUM_in:  -1015
+   120.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(-36*127)=-4572, prod_lo=(-114*-79)=9006
+   120.00ns INFO     cocotb.tpu                             ALU_out:  4434 (prod_hi + prod_lo)
+   120.00ns INFO     cocotb.tpu                             PSUM_next: 3419 (alu_out + psum_in)
+   120.00ns INFO     cocotb.tpu                             PSUM_out: 0
+   120.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+   120.00ns INFO     cocotb.tpu                           sys_data_out[0] = 7752  valid=1
+   120.00ns INFO     cocotb.tpu                           sys_data_out[1] = 0  valid=0
+   120.00ns INFO     cocotb.tpu                         ================================================================================
+   130.00ns INFO     cocotb.tpu                          
+   130.00ns INFO     cocotb.tpu                         ================================================================================
+   130.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 5
+   130.00ns INFO     cocotb.tpu                         ================================================================================
+   130.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+   130.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0x0a14 (10,20)  valid=0  switch=0
+   130.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0x1e28 (30,40)  valid=0  switch=0
+   130.00ns INFO     cocotb.tpu                          --- PE[0][1] (enabled=1) ---
+   130.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=1 switch_in=0 switch_out=0
+   130.00ns INFO     cocotb.tpu                             Input:   0x0a14 (10,20)
+   130.00ns INFO     cocotb.tpu                             WeightActive:   0x90b3 (-112,-77)
+   130.00ns INFO     cocotb.tpu                             WeightInactive: 0x90b3 (-112,-77)
+   130.00ns INFO     cocotb.tpu                             CurrentWeight:  0x90b3 (-112,-77) [switch=0]
+   130.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   130.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(10*-112)=-1120, prod_lo=(20*-77)=-1540
+   130.00ns INFO     cocotb.tpu                             ALU_out:  -2660 (prod_hi + prod_lo)
+   130.00ns INFO     cocotb.tpu                             PSUM_next: -2660 (alu_out + psum_in)
+   130.00ns INFO     cocotb.tpu                             PSUM_out: -2660
+   130.00ns INFO     cocotb.tpu                          --- PE[1][0] (enabled=1) ---
+   130.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=1 switch_in=0 switch_out=0
+   130.00ns INFO     cocotb.tpu                             Input:   0x1e28 (30,40)
+   130.00ns INFO     cocotb.tpu                             WeightActive:   0xc4c0 (-60,-64)
+   130.00ns INFO     cocotb.tpu                             WeightInactive: 0xc4c0 (-60,-64)
+   130.00ns INFO     cocotb.tpu                             CurrentWeight:  0xc4c0 (-60,-64) [switch=0]
+   130.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   130.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(30*-60)=-1800, prod_lo=(40*-64)=-2560
+   130.00ns INFO     cocotb.tpu                             ALU_out:  -4360 (prod_hi + prod_lo)
+   130.00ns INFO     cocotb.tpu                             PSUM_next: -4360 (alu_out + psum_in)
+   130.00ns INFO     cocotb.tpu                             PSUM_out: -6240
+   130.00ns INFO     cocotb.tpu                          --- PE[1][1] (enabled=1) ---
+   130.00ns INFO     cocotb.tpu                             Signals: valid_in=1 valid_out=1 switch_in=0 switch_out=0
+   130.00ns INFO     cocotb.tpu                             Input:   0x1e28 (30,40)
+   130.00ns INFO     cocotb.tpu                             WeightActive:   0x7fb1 (127,-79)
+   130.00ns INFO     cocotb.tpu                             WeightInactive: 0x7fb1 (127,-79)
+   130.00ns INFO     cocotb.tpu                             CurrentWeight:  0x7fb1 (127,-79) [switch=0]
+   130.00ns INFO     cocotb.tpu                             PSUM_in:  -2660
+   130.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(30*127)=3810, prod_lo=(40*-79)=-3160
+   130.00ns INFO     cocotb.tpu                             ALU_out:  650 (prod_hi + prod_lo)
+   130.00ns INFO     cocotb.tpu                             PSUM_next: -2010 (alu_out + psum_in)
+   130.00ns INFO     cocotb.tpu                             PSUM_out: 3419
+   130.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+   130.00ns INFO     cocotb.tpu                           sys_data_out[0] = -6240  valid=1
+   130.00ns INFO     cocotb.tpu                           sys_data_out[1] = 3419  valid=1
+   130.00ns INFO     cocotb.tpu                         ================================================================================
+   140.00ns INFO     cocotb.tpu                          
+   140.00ns INFO     cocotb.tpu                         ================================================================================
+   140.00ns INFO     cocotb.tpu                         SYSTOLIC ARRAY STATE - CYCLE 6
+   140.00ns INFO     cocotb.tpu                         ================================================================================
+   140.00ns INFO     cocotb.tpu                         EXTERNAL INPUTS:
+   140.00ns INFO     cocotb.tpu                           sys_data_in[0] = 0x0a14 (10,20)  valid=0  switch=0
+   140.00ns INFO     cocotb.tpu                           sys_data_in[1] = 0x1e28 (30,40)  valid=0  switch=0
+   140.00ns INFO     cocotb.tpu                          --- PE[1][1] (enabled=1) ---
+   140.00ns INFO     cocotb.tpu                             Signals: valid_in=0 valid_out=1 switch_in=0 switch_out=0
+   140.00ns INFO     cocotb.tpu                             Input:   0x1e28 (30,40)
+   140.00ns INFO     cocotb.tpu                             WeightActive:   0x7fb1 (127,-79)
+   140.00ns INFO     cocotb.tpu                             WeightInactive: 0x7fb1 (127,-79)
+   140.00ns INFO     cocotb.tpu                             CurrentWeight:  0x7fb1 (127,-79) [switch=0]
+   140.00ns INFO     cocotb.tpu                             PSUM_in:  0
+   140.00ns INFO     cocotb.tpu                             INT8 Calc: prod_hi=(30*127)=3810, prod_lo=(40*-79)=-3160
+   140.00ns INFO     cocotb.tpu                             ALU_out:  650 (prod_hi + prod_lo)
+   140.00ns INFO     cocotb.tpu                             PSUM_next: 650 (alu_out + psum_in)
+   140.00ns INFO     cocotb.tpu                             PSUM_out: -2010
+   140.00ns INFO     cocotb.tpu                         EXTERNAL OUTPUTS:
+   140.00ns INFO     cocotb.tpu                           sys_data_out[0] = 0  valid=0
+   140.00ns INFO     cocotb.tpu                           sys_data_out[1] = -2010  valid=1
+   140.00ns INFO     cocotb.tpu                         ================================================================================
+   320.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_int8_e2e.py:425: DeprecationWarning: `task.kill()` is deprecated in favor of `task.cancel()`
+                                                          monitor_task.kill()
+   320.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_int8_e2e.py:426: DeprecationWarning: `task.kill()` is deprecated in favor of `task.cancel()`
+                                                          debug_task.kill()
+   320.00ns INFO     cocotb.tpu                         Computing expected results using Python golden model...
+   320.00ns INFO     cocotb.tpu                         Golden Col 0 (first 5): [10128, -7890]...
+   320.00ns INFO     cocotb.tpu                         Golden Col 1 (first 5): [5479, -6750]...
+   320.00ns INFO     cocotb.tpu                         Captured Output 1 (2 values): [7752, -6240]...
+   320.00ns INFO     cocotb.tpu                         Captured Output 2 (2 values): [3419, -2010]...
+   320.00ns INFO     cocotb.tpu                         Verifying Column 0 (Channel 1) against golden model...
+   320.00ns INFO     cocotb.tpu                         Verifying Column 1 (Channel 2) against golden model...
+   320.00ns WARNING  cocotb.tpu                         Found 2 Col0 mismatches, 2 Col1 mismatches
+   320.00ns WARNING  cocotb.tpu                           Col0 Row 0: HW=7752 != Gold=10128 (A[0]=(-26,51),(-36,-114))
+   320.00ns WARNING  cocotb.tpu                           Col0 Row 1: HW=-6240 != Gold=-7890 (A[1]=(10,20),(30,40))
+   320.00ns WARNING  cocotb.tpu                           Col1 Row 0: HW=3419 != Gold=5479
+   320.00ns WARNING  cocotb.tpu                           Col1 Row 1: HW=-2010 != Gold=-6750
+   320.00ns WARNING  ..Test test_int8_e2e.test_int8_e2e BIT-PERFECT VERIFICATION FAILED! 2 Col0 errors, 2 Col1 errors
+                                                        assert False
+                                                        Traceback (most recent call last):
+                                                          File "/home/firatkizilboga/tiny-tpu/test/test_int8_e2e.py", line 482, in test_int8_e2e
+                                                            assert False, f"BIT-PERFECT VERIFICATION FAILED! {len(mismatches_col0)} Col0 errors, {len(mismatches_col1)} Col1 errors"
+                                                        AssertionError: BIT-PERFECT VERIFICATION FAILED! 2 Col0 errors, 2 Col1 errors
+                                                        assert False
+   320.00ns WARNING  cocotb.regression                  test_int8_e2e.test_int8_e2e failed
+   320.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_int8_e2e.test_int8_e2e    FAIL         320.00           0.01      24932.70  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=0 FAIL=1 SKIP=0                320.00           0.02      17302.57  **
+                                                        **************************************************************************************
+VCD info: dumpfile waveforms/tpu.vcd opened for output.
+! grep failure results.xml
+      <failure error_type="AssertionError" error_msg="BIT-PERFECT VERIFICATION FAILED! 2 Col0 errors, 2 Col1 errors&#10;assert False" />
+make: *** [Makefile:83: test_int8_e2e] Error 1

@@ -2,6 +2,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles
 import numpy as np
+from test_utils import PackedArrayDriver, read_packed_valid
 
 ### TODO: optimize for clk cycles later: focus on functionality first
 # For transposed weight matrices set the start address one address above where the first element of the weight matrix is stored in UB
@@ -63,6 +64,20 @@ leak_factor = 0.5
 #  [-0.0438 -0.0492]
 #  [ 0.0843  0.0947]]
 
+
+async def wait_for_vpu_done(dut, timeout=100):
+    """Wait for VPU valid signal to go low (all lanes done)."""
+    for _ in range(timeout):
+        await RisingEdge(dut.clk)
+        try:
+            valid_val = int(dut.vpu_inst.vpu_valid_out.value)
+        except ValueError:
+            valid_val = 0
+        if valid_val == 0:
+            return True
+    return False
+
+
 @cocotb.test()
 async def test_tpu(dut): 
     
@@ -70,12 +85,14 @@ async def test_tpu(dut):
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
+    # Initialize packed array drivers
+    ub_wr_host_data_drv = PackedArrayDriver(dut.ub_wr_host_data_in, 16, 2)
+    ub_wr_host_valid_drv = PackedArrayDriver(dut.ub_wr_host_valid_in, 1, 2)
+
     # rst the DUT (device under test)
     dut.rst.value = 1
-    dut.ub_wr_host_data_in[0].value = 0
-    dut.ub_wr_host_data_in[1].value = 0
-    dut.ub_wr_host_valid_in[0].value = 0
-    dut.ub_wr_host_valid_in[1].value = 0
+    ub_wr_host_data_drv.set_all([0, 0])
+    ub_wr_host_valid_drv.set_all([0, 0])
     dut.ub_rd_start_in.value = 0
     dut.ub_rd_transpose.value = 0
     dut.ub_ptr_select.value = 0
@@ -98,64 +115,46 @@ async def test_tpu(dut):
     await RisingEdge(dut.clk)
 
     # Load X, Y, W1, B1, W2, B2 (in that order)
-    dut.ub_wr_host_data_in[0].value = to_fixed(X[0][0])
-    dut.ub_wr_host_valid_in[0].value = 1
+    ub_wr_host_data_drv.set(0, to_fixed(X[0][0]))
+    ub_wr_host_valid_drv.set(0, 1)
     await RisingEdge(dut.clk)
 
     for i in range(len(X) - 1):
-        dut.ub_wr_host_data_in[0].value = to_fixed(X[i + 1][0])
-        dut.ub_wr_host_valid_in[0].value = 1
-        dut.ub_wr_host_data_in[1].value = to_fixed(X[i][1])
-        dut.ub_wr_host_valid_in[1].value = 1
+        ub_wr_host_data_drv.set_all([to_fixed(X[i + 1][0]), to_fixed(X[i][1])])
+        ub_wr_host_valid_drv.set_all([1, 1])
         await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(Y[0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = to_fixed(X[3][1])
-    dut.ub_wr_host_valid_in[1].value = 1
+    ub_wr_host_data_drv.set_all([to_fixed(Y[0]), to_fixed(X[3][1])])
+    ub_wr_host_valid_drv.set_all([1, 1])
     await RisingEdge(dut.clk)
 
     for i in range(len(Y) - 1):
-        dut.ub_wr_host_data_in[0].value = to_fixed(Y[i + 1])
-        dut.ub_wr_host_valid_in[0].value = 1
-        dut.ub_wr_host_data_in[1].value = 0
-        dut.ub_wr_host_valid_in[1].value = 0
+        ub_wr_host_data_drv.set_all([to_fixed(Y[i + 1]), 0])
+        ub_wr_host_valid_drv.set_all([1, 0])
         await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(W1[0][0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = 0
-    dut.ub_wr_host_valid_in[1].value = 0
+    ub_wr_host_data_drv.set_all([to_fixed(W1[0][0]), 0])
+    ub_wr_host_valid_drv.set_all([1, 0])
     await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(W1[1][0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = to_fixed(W1[0][1])
-    dut.ub_wr_host_valid_in[1].value = 1
+    ub_wr_host_data_drv.set_all([to_fixed(W1[1][0]), to_fixed(W1[0][1])])
+    ub_wr_host_valid_drv.set_all([1, 1])
     await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(B1[0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = to_fixed(W1[1][1])
-    dut.ub_wr_host_valid_in[1].value = 1
+    ub_wr_host_data_drv.set_all([to_fixed(B1[0]), to_fixed(W1[1][1])])
+    ub_wr_host_valid_drv.set_all([1, 1])
     await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(W2[0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = to_fixed(B1[1])
-    dut.ub_wr_host_valid_in[1].value = 1
+    ub_wr_host_data_drv.set_all([to_fixed(W2[0]), to_fixed(B1[1])])
+    ub_wr_host_valid_drv.set_all([1, 1])
     await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = to_fixed(B2[0])
-    dut.ub_wr_host_valid_in[0].value = 1
-    dut.ub_wr_host_data_in[1].value = to_fixed(W2[1])
-    dut.ub_wr_host_valid_in[1].value = 1
+    ub_wr_host_data_drv.set_all([to_fixed(B2[0]), to_fixed(W2[1])])
+    ub_wr_host_valid_drv.set_all([1, 1])
     await RisingEdge(dut.clk)
 
-    dut.ub_wr_host_data_in[0].value = 0
-    dut.ub_wr_host_valid_in[0].value = 0
-    dut.ub_wr_host_data_in[1].value = 0
-    dut.ub_wr_host_valid_in[1].value = 0
+    ub_wr_host_data_drv.set_all([0, 0])
+    ub_wr_host_valid_drv.set_all([0, 0])
     await RisingEdge(dut.clk)
 
 
@@ -211,7 +210,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)  # wait until last value of vpu is done
+    await wait_for_vpu_done(dut)  # wait until last value of vpu is done
 
     # Load in W2^T
     dut.ub_rd_start_in.value = 1
@@ -302,7 +301,7 @@ async def test_tpu(dut):
     dut.ub_rd_col_size.value = 0
     await RisingEdge(dut.clk)
 
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
     # Load in W2 from UB to top of systolic array
     dut.ub_rd_start_in.value = 1
@@ -365,7 +364,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
     # NOW CALCULATING LEAF NODES (Weight gradients, requires tiling)
     
@@ -422,7 +421,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
     # Load second H1 tile into top of systolic array (we are calculating dL/dW2 first)
     dut.ub_rd_start_in.value = 1
@@ -476,7 +475,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
     # Now calculating W2 gradients
     # Load first H1 tile into top of systolic array
@@ -531,7 +530,7 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
     # Load second H1 tile into top of systolic array (we are calculating dL/dW2 first)
     dut.ub_rd_start_in.value = 1
@@ -585,12 +584,8 @@ async def test_tpu(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await FallingEdge(dut.vpu_valid_out_1)
+    await wait_for_vpu_done(dut)
 
 
 
     await ClockCycles(dut.clk, 10)
-
-    
-    
-    

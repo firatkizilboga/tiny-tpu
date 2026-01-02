@@ -1,0 +1,1058 @@
+mkdir -p sim_build
+mkdir -p waveforms
+iverilog -o sim_build/sim.vvp -s pe -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_pe.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_pe vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355936
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_pe.test_pe (1/1)
+                                                            Test the PE module with a variety of fixed-point inputs.
+    90.00ns INFO     cocotb.regression                  test_pe.test_pe passed
+    90.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_pe.test_pe                PASS          90.00           0.00     133671.16  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                 90.00           0.00      85057.99  **
+                                                        **************************************************************************************
+VCD info: dumpfile waveforms/pe.vcd opened for output.
+! grep failure results.xml
+mv pe.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s systolic -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_systolic.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_systolic vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355936
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_systolic.test_systolic_array (1/1)
+   170.00ns INFO     cocotb.regression                  test_systolic.test_systolic_array passed
+   170.00ns INFO     cocotb.regression                  *******************************************************************************************
+                                                        ** TEST                               STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        *******************************************************************************************
+                                                        ** test_systolic.test_systolic_array   PASS         170.00           0.00     142094.79  **
+                                                        *******************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                     170.00           0.00     102786.75  **
+                                                        *******************************************************************************************
+VCD info: dumpfile waveforms/systolic.vcd opened for output.
+! grep failure results.xml
+mv systolic.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s unified_buffer -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_unified_buffer.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_unified_buffer vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355936
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_unified_buffer.test_unified_buffer (1/1)
+   550.00ns INFO     cocotb.regression                  test_unified_buffer.test_unified_buffer passed
+   550.00ns INFO     cocotb.regression                  *************************************************************************************************
+                                                        ** TEST                                     STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        *************************************************************************************************
+                                                        ** test_unified_buffer.test_unified_buffer   PASS         550.00           0.00     140414.34  **
+                                                        *************************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                           550.00           0.01     108293.46  **
+                                                        *************************************************************************************************
+VCD info: dumpfile waveforms/unified_buffer.vcd opened for output.
+! grep failure results.xml
+mv unified_buffer.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s loss_parent -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_loss_parent.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_loss_parent vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355937
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_loss_parent.test_loss_parent_4x2_staggered (1/2)
+                                                            test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values
+=== test case 1: 4x2 batch staggered pattern (1,2,2,2,1) - 8 values ===
+cycle 0: col1=Y, col2=N
+  col1[0]: H=0.700, Y=1.000
+cycle 1: col1=Y, col2=Y
+  col1[1]: H=0.500, Y=0.000
+  col2[0]: H=0.800, Y=0.000
+cycle 2: col1=Y, col2=Y
+  col1[2]: H=0.300, Y=0.500
+  col2[1]: H=0.600, Y=1.000
+cycle 3: col1=Y, col2=Y
+  col1[3]: H=0.900, Y=1.000
+  col2[2]: H=0.200, Y=0.300
+cycle 4: col1=N, col2=Y
+  col2[3]: H=0.400, Y=0.700
+cycle 0: col1 output = -0.05078
+cycle 0: col2 output = -0.05078
+cycle 1: col2 output = -0.14844
+total results - col1: 1, col2: 2, total: 3
+col1[0]: expected -0.15000, got -0.05078, rel_err 0.661
+col2[0]: expected 0.40000, got -0.05078, rel_err 1.127
+col2[1]: expected -0.20000, got -0.14844, rel_err 0.258
+4x2 staggered test passed!
+   150.00ns INFO     cocotb.regression                  test_loss_parent.test_loss_parent_4x2_staggered passed
+   150.00ns INFO     cocotb.regression                  running test_loss_parent.test_loss_parent_as_single_child (2/2)
+                                                            test case 2: use loss_parent as single loss_child interface (4 values)
+=== test case 2: loss_parent as single loss_child (4 values) ===
+input[0]: H=0.6831, Y=0.0000
+input[1]: H=0.8060, Y=1.0000
+input[2]: H=0.4905, Y=1.0000
+input[3]: H=0.5487, Y=0.0000
+cycle 0: output = -0.25391
+cycle 1: output = 0.27344
+result[0]: expected 0.34155, got -0.25391, rel_err 1.743
+result[1]: expected -0.09700, got 0.27344, rel_err 3.819
+single child interface test passed!
+all loss_parent tests completed successfully!
+   300.00ns INFO     cocotb.regression                  test_loss_parent.test_loss_parent_as_single_child passed
+   300.00ns INFO     cocotb.regression                  ***********************************************************************************************************
+                                                        ** TEST                                               STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        ***********************************************************************************************************
+                                                        ** test_loss_parent.test_loss_parent_4x2_staggered     PASS         150.00           0.00     111353.20  **
+                                                        ** test_loss_parent.test_loss_parent_as_single_child   PASS         150.00           0.00     243383.21  **
+                                                        ***********************************************************************************************************
+                                                        ** TESTS=2 PASS=2 FAIL=0 SKIP=0                                     300.00           0.00      96829.20  **
+                                                        ***********************************************************************************************************
+VCD info: dumpfile waveforms/loss_parent.vcd opened for output.
+! grep failure results.xml
+mv loss_parent.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s leaky_relu_parent -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_leaky_relu_parent.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_leaky_relu_parent vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355937
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_leaky_relu_parent.test_leaky_relu_parent_4x2_staggered (1/4)
+                                                            test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values
+=== test case 1: 4x2 batch staggered pattern (1,2,2,2,1) - 8 values ===
+leak factor: 0.1
+cycle 0: col1=Y, col2=N
+  col1[0]: data=2.500
+cycle 1: col1=Y, col2=Y
+  col1[1]: data=-1.200
+  col2[0]: data=1.800
+cycle 2: col1=Y, col2=Y
+  col1[2]: data=0.800
+  col2[1]: data=-0.900
+cycle 3: col1=Y, col2=Y
+  col1[3]: data=-3.100
+  col2[2]: data=1.500
+cycle 4: col1=N, col2=Y
+  col2[3]: data=-2.200
+cycle 0: col1 output = -0.31641
+cycle 0: col2 output = 1.50000
+cycle 1: col2 output = -0.22266
+total results - col1: 1, col2: 2, total: 3
+col1[0]: expected 2.50000, got -0.31641, abs_err 2.81641
+col2[0]: expected 1.80000, got 1.50000, abs_err 0.30000
+col2[1]: expected -0.09000, got -0.22266, abs_err 0.13266
+4x2 staggered test passed!
+   150.00ns INFO     cocotb.regression                  test_leaky_relu_parent.test_leaky_relu_parent_4x2_staggered passed
+   150.00ns INFO     cocotb.regression                  running test_leaky_relu_parent.test_leaky_relu_parent_as_single_child (2/4)
+                                                            test case 2: use leaky_relu_parent as single leaky_relu_child interface (4 values)
+=== test case 2: leaky_relu_parent as single leaky_relu_child (4 values) ===
+leak factor: 0.1
+input[0]: data=2.5000
+input[1]: data=-1.2000
+input[2]: data=0.8000
+input[3]: data=-3.1000
+cycle 0: output = 0.80078
+cycle 1: output = -0.31641
+result[0]: expected 2.50000, got 0.80078, abs_err 1.69922
+result[1]: expected -0.12000, got -0.31641, abs_err 0.19641
+single child interface test passed!
+   300.00ns INFO     cocotb.regression                  test_leaky_relu_parent.test_leaky_relu_parent_as_single_child passed
+   300.00ns INFO     cocotb.regression                  running test_leaky_relu_parent.test_leaky_relu_parent_edge_cases (3/4)
+                                                            test case 3: test leaky_relu_parent with edge cases on both columns
+=== test case 3: leaky_relu_parent edge cases ===
+testing edge cases on column 1:
+edge case 0: input=0.000
+edge case 1: input=-0.010
+edge case 2: input=0.010
+edge case 3: input=-5.000
+  col1 result: expected 0.00000, got 0.01172, abs_err 0.01172
+  col1 result: expected -0.00100, got -0.50781, abs_err 0.50681
+edge case tests passed!
+   410.00ns INFO     cocotb.regression                  test_leaky_relu_parent.test_leaky_relu_parent_edge_cases passed
+   410.00ns INFO     cocotb.regression                  running test_leaky_relu_parent.test_leaky_relu_parent_invalid_inputs (4/4)
+                                                            test case 4: test leaky_relu_parent with invalid input combinations
+=== test case 4: leaky_relu_parent invalid input cases ===
+test case 1 passed: outputs invalid when no valid signals asserted
+test case 2 passed: col1 valid, col2 invalid as expected
+test case 3 passed: col1 invalid, col2 valid as expected
+test case 4 passed: both columns valid as expected
+invalid input tests passed!
+all leaky_relu_parent tests completed successfully!
+   460.00ns INFO     cocotb.regression                  test_leaky_relu_parent.test_leaky_relu_parent_invalid_inputs passed
+   460.00ns INFO     cocotb.regression                  ***********************************************************************************************************************
+                                                        ** TEST                                                           STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        ***********************************************************************************************************************
+                                                        ** test_leaky_relu_parent.test_leaky_relu_parent_4x2_staggered     PASS         150.00           0.00     149228.08  **
+                                                        ** test_leaky_relu_parent.test_leaky_relu_parent_as_single_child   PASS         150.00           0.00     273185.24  **
+                                                        ** test_leaky_relu_parent.test_leaky_relu_parent_edge_cases        PASS         110.00           0.00     269809.03  **
+                                                        ** test_leaky_relu_parent.test_leaky_relu_parent_invalid_inputs    PASS          50.00           0.00     219367.36  **
+                                                        ***********************************************************************************************************************
+                                                        ** TESTS=4 PASS=4 FAIL=0 SKIP=0                                                 460.00           0.00     105789.69  **
+                                                        ***********************************************************************************************************************
+VCD info: dumpfile waveforms/leaky_relu_parent.vcd opened for output.
+! grep failure results.xml
+mv leaky_relu_parent.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s leaky_relu_derivative_parent -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_leaky_relu_derivative_parent.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_leaky_relu_derivative_parent vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355938
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_4x2_staggered (1/4)
+                                                            test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values
+=== test case 1: 4x2 batch staggered pattern (1,2,2,2,1) - 8 values ===
+leak factor: 0.1
+cycle 0: col1=Y, col2=N
+  col1[0]: data=2.500
+cycle 1: col1=Y, col2=Y
+  col1[1]: data=-1.200
+  col2[0]: data=1.800
+cycle 2: col1=Y, col2=Y
+  col1[2]: data=0.800
+  col2[1]: data=-0.900
+cycle 3: col1=Y, col2=Y
+  col1[3]: data=-3.100
+  col2[2]: data=1.500
+cycle 4: col1=N, col2=Y
+  col2[3]: data=-2.200
+cycle 0: col1 output = -0.31641
+cycle 0: col2 output = 0.15234
+cycle 1: col2 output = -0.22266
+total results - col1: 1, col2: 2, total: 3
+col1[0]: expected 2.50000, got -0.31641, abs_err 2.81641
+col2[0]: expected 1.80000, got 0.15234, abs_err 1.64766
+col2[1]: expected -0.09000, got -0.22266, abs_err 0.13266
+4x2 staggered test passed!
+   150.00ns INFO     cocotb.regression                  test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_4x2_staggered passed
+   150.00ns INFO     cocotb.regression                  running test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_as_single_child (2/4)
+                                                            test case 2: use leaky_relu_derivative_parent as single leaky_relu_derivative_child interface (4 values)
+=== test case 2: leaky_relu_derivative_parent as single leaky_relu_derivative_child (4 values) ===
+leak factor: 0.1
+input[0]: data=2.5000
+input[1]: data=-1.2000
+input[2]: data=0.8000
+input[3]: data=-3.1000
+cycle 0: output = 0.08203
+cycle 1: output = -0.31641
+result[0]: expected 2.50000, got 0.08203, abs_err 2.41797
+result[1]: expected -0.12000, got -0.31641, abs_err 0.19641
+single child interface test passed!
+   300.00ns INFO     cocotb.regression                  test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_as_single_child passed
+   300.00ns INFO     cocotb.regression                  running test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_edge_cases (3/4)
+                                                            test case 3: test leaky_relu_derivative_parent with edge cases on both columns
+=== test case 3: leaky_relu_derivative_parent edge cases ===
+testing edge cases on column 1:
+edge case 0: input=0.000
+edge case 1: input=-0.010
+edge case 2: input=0.010
+edge case 3: input=-5.000
+  col1 result: expected 0.00000, got 0.00000, abs_err 0.00000
+  col1 result: expected -0.00100, got -0.50781, abs_err 0.50681
+edge case tests passed!
+   410.00ns INFO     cocotb.regression                  test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_edge_cases passed
+   410.00ns INFO     cocotb.regression                  running test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_invalid_inputs (4/4)
+                                                            test case 4: test leaky_relu_derivative_parent with invalid input combinations
+=== test case 4: leaky_relu_derivative_parent invalid input cases ===
+test case 1 passed: outputs invalid when no valid signals asserted
+test case 2 passed: col1 valid, col2 invalid as expected
+test case 3 passed: col1 invalid, col2 valid as expected
+test case 4 passed: both columns valid as expected
+invalid input tests passed!
+all leaky_relu_derivative_parent tests completed successfully!
+   460.00ns INFO     cocotb.regression                  test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_invalid_inputs passed
+   460.00ns INFO     cocotb.regression                  *********************************************************************************************************************************************
+                                                        ** TEST                                                                                 STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        *********************************************************************************************************************************************
+                                                        ** test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_4x2_staggered     PASS         150.00           0.00     151382.48  **
+                                                        ** test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_as_single_child   PASS         150.00           0.00     285585.84  **
+                                                        ** test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_edge_cases        PASS         110.00           0.00     278271.07  **
+                                                        ** test_leaky_relu_derivative_parent.test_leaky_relu_derivative_parent_invalid_inputs    PASS          50.00           0.00     235106.73  **
+                                                        *********************************************************************************************************************************************
+                                                        ** TESTS=4 PASS=4 FAIL=0 SKIP=0                                                                       460.00           0.00     106625.72  **
+                                                        *********************************************************************************************************************************************
+VCD info: dumpfile waveforms/leaky_relu_derivative_parent.vcd opened for output.
+! grep failure results.xml
+mv leaky_relu_derivative_parent.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s bias_parent -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_bias_parent.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_bias_parent vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355938
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_bias_parent.test_bias_parent_4x2_staggered (1/3)
+                                                            test case 1: 4x2 batch with staggered pattern (1,2,2,2,1) - 8 total values
+=== test case 1: 4x2 batch staggered pattern (1,2,2,2,1) - 8 values ===
+bias_scalar_col1: 0.5, bias_scalar_col2: 0.3
+cycle 0: col1=Y, col2=N
+  col1[0]: sys_data=2.500
+cycle 1: col1=Y, col2=Y
+  col1[1]: sys_data=-1.200
+  col2[0]: sys_data=1.800
+cycle 2: col1=Y, col2=Y
+  col1[2]: sys_data=0.800
+  col2[1]: sys_data=-0.900
+cycle 3: col1=Y, col2=Y
+  col1[3]: sys_data=-3.100
+  col2[2]: sys_data=1.500
+cycle 4: col1=N, col2=Y
+  col2[3]: sys_data=-2.200
+cycle 0: col1 output = -2.60156
+cycle 0: col2 output = 1.50000
+cycle 1: col2 output = -2.19922
+total results - col1: 1, col2: 2, total: 3
+col1[0]: expected 3.00000, got -2.60156, abs_err 5.60156
+col2[0]: expected 2.10000, got 1.50000, abs_err 0.60000
+col2[1]: expected -0.60000, got -2.19922, abs_err 1.59922
+4x2 staggered test passed!
+   150.00ns INFO     cocotb.regression                  test_bias_parent.test_bias_parent_4x2_staggered passed
+   150.00ns INFO     cocotb.regression                  running test_bias_parent.test_bias_parent_as_single_child (2/3)
+                                                            test case 2: use bias_parent as single bias_child interface (4 values)
+=== test case 2: bias_parent as single bias_child (4 values) ===
+bias_scalar_col1: 0.5
+input[0]: sys_data=2.5000
+input[1]: sys_data=-1.2000
+input[2]: sys_data=0.8000
+input[3]: sys_data=-3.1000
+cycle 0: output = 1.30078
+cycle 1: output = -2.60156
+result[0]: expected 3.00000, got 1.30078, abs_err 1.69922
+result[1]: expected -0.70000, got -2.60156, abs_err 1.90156
+single child interface test passed!
+   300.00ns INFO     cocotb.regression                  test_bias_parent.test_bias_parent_as_single_child passed
+   300.00ns INFO     cocotb.regression                  running test_bias_parent.test_bias_parent_invalid_inputs (3/3)
+                                                            test case 3: test bias_parent with invalid input combinations
+=== test case 3: bias_parent invalid input cases ===
+test case 1 passed: outputs invalid when sys_valid signals are low
+test case 2 passed: outputs valid when systolic array valid signals asserted
+test case 3 passed: col1 valid, col2 invalid as expected
+test case 4 passed: col1 invalid, col2 valid as expected
+invalid input tests passed!
+all bias_parent tests completed successfully!
+   350.00ns INFO     cocotb.regression                  test_bias_parent.test_bias_parent_invalid_inputs passed
+   350.00ns INFO     cocotb.regression                  ***********************************************************************************************************
+                                                        ** TEST                                               STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        ***********************************************************************************************************
+                                                        ** test_bias_parent.test_bias_parent_4x2_staggered     PASS         150.00           0.00     139037.70  **
+                                                        ** test_bias_parent.test_bias_parent_as_single_child   PASS         150.00           0.00     269556.81  **
+                                                        ** test_bias_parent.test_bias_parent_invalid_inputs    PASS          50.00           0.00     215534.64  **
+                                                        ***********************************************************************************************************
+                                                        ** TESTS=3 PASS=3 FAIL=0 SKIP=0                                     350.00           0.00      93124.51  **
+                                                        ***********************************************************************************************************
+VCD info: dumpfile waveforms/bias_parent.vcd opened for output.
+! grep failure results.xml
+mv bias_parent.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s vpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_vpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_vpu vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355939
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_vpu.test_vector_unit (1/1)
+   480.00ns INFO     cocotb.regression                  test_vpu.test_vector_unit passed
+   480.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_vpu.test_vector_unit      PASS         480.00           0.00     153825.33  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                480.00           0.00     123680.18  **
+                                                        **************************************************************************************
+VCD info: dumpfile waveforms/vpu.vcd opened for output.
+! grep failure results.xml
+mv vpu.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s tpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_tpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_tpu vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355939
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_tpu.test_tpu (1/1)
+[TPU] t=0: sys_valid_out is ZERO
+[SYS] t=160000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=190000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=200000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=210000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=210000: sys_valid_out=[1,0]
+[TPU] t=210000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=220000: sys_valid_out in TPU scope=[1,1]
+[SYS] t=220000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=220000: sys_valid_out=[1,1]
+[SYS] t=230000: sys_valid_out=[1,1]
+[TPU] t=230000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=230000: vpu_valid_out=[1,0]
+[TPU] t=240000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=240000: vpu_valid_out=[1,1]
+[SYS] t=240000: sys_valid_out=[1,1]
+[SYS] t=250000: sys_valid_out=[0,1]
+[TPU] t=250000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=250000: vpu_valid_out=[1,1]
+[TPU] t=260000: vpu_valid_out=[1,1]
+[SYS] t=270000: pe_enabled set to 00000000000000000000000000000001
+[TPU] t=270000: vpu_valid_out=[0,1]
+[SYS] t=300000: sys_start, pe_enabled=01, sys_mode=0
+[SYS] t=310000: sys_start, pe_enabled=01, sys_mode=0
+[TPU] t=320000: sys_valid_out in TPU scope=[1,0]
+[SYS] t=320000: sys_start, pe_enabled=01, sys_mode=0
+[SYS] t=320000: sys_valid_out=[1,0]
+[SYS] t=330000: sys_start, pe_enabled=01, sys_mode=0
+[SYS] t=330000: sys_valid_out=[1,0]
+[TPU] t=330000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=340000: sys_valid_out in TPU scope=[1,0]
+[SYS] t=340000: sys_valid_out=[1,0]
+[SYS] t=350000: sys_valid_out=[1,0]
+[TPU] t=350000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=360000: vpu_valid_out=[1,0]
+[TPU] t=370000: vpu_valid_out=[1,0]
+[TPU] t=380000: vpu_valid_out=[1,0]
+[TPU] t=390000: vpu_valid_out=[1,0]
+[SYS] t=400000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=430000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=440000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=450000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=450000: sys_valid_out=[1,0]
+[TPU] t=450000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=460000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=460000: vpu_valid_out=[1,0]
+[SYS] t=460000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=460000: sys_valid_out=[1,1]
+[SYS] t=470000: sys_valid_out=[1,1]
+[TPU] t=470000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=470000: vpu_valid_out=[1,1]
+[TPU] t=480000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=480000: vpu_valid_out=[1,1]
+[SYS] t=480000: sys_valid_out=[1,1]
+[SYS] t=490000: sys_valid_out=[0,1]
+[TPU] t=490000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=490000: vpu_valid_out=[1,1]
+[TPU] t=500000: vpu_valid_out=[0,1]
+[SYS] t=500000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=530000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=540000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=550000: sys_valid_out=[1,0]
+[TPU] t=550000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=550000: vpu_valid_out=[1,0]
+[TPU] t=560000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=560000: vpu_valid_out=[1,1]
+[SYS] t=560000: sys_valid_out=[1,1]
+[SYS] t=570000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=570000: sys_valid_out=[0,1]
+[TPU] t=570000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=570000: vpu_valid_out=[0,1]
+[SYS] t=600000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=610000: sys_start, pe_enabled=11, sys_mode=0
+[TPU] t=620000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=620000: vpu_valid_out=[1,0]
+[SYS] t=620000: sys_valid_out=[1,0]
+[SYS] t=630000: sys_valid_out=[1,1]
+[TPU] t=630000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=630000: vpu_valid_out=[1,1]
+[TPU] t=640000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=640000: vpu_valid_out=[0,1]
+[SYS] t=640000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=640000: sys_valid_out=[0,1]
+[SYS] t=670000: sys_start, pe_enabled=11, sys_mode=0
+[SYS] t=690000: sys_valid_out=[1,0]
+[TPU] t=690000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=690000: vpu_valid_out=[1,0]
+[TPU] t=700000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=700000: vpu_valid_out=[0,1]
+[SYS] t=700000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=700000: sys_valid_out=[0,1]
+[SYS] t=730000: sys_start, pe_e   850.00ns INFO     cocotb.regression                  test_tpu.test_tpu passed
+   850.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_tpu.test_tpu              PASS         850.00           0.01     134803.89  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                850.00           0.01      97892.81  **
+                                                        **************************************************************************************
+nabled=11, sys_mode=0
+[SYS] t=750000: sys_valid_out=[1,0]
+[TPU] t=750000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=750000: vpu_valid_out=[1,0]
+[TPU] t=760000: sys_valid_out in TPU scope=[0,1]
+[TPU] t=760000: vpu_valid_out=[0,1]
+[SYS] t=760000: sys_valid_out=[0,1]
+! grep failure results.xml
+mv tpu.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s gradient_descent -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_gradient_descent.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_gradient_descent vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355940
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_gradient_descent.test_gradient_descent (1/1)
+   160.00ns INFO     cocotb.regression                  test_gradient_descent.test_gradient_descent passed
+   160.00ns INFO     cocotb.regression                  *****************************************************************************************************
+                                                        ** TEST                                         STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        *****************************************************************************************************
+                                                        ** test_gradient_descent.test_gradient_descent   PASS         160.00           0.00     146302.30  **
+                                                        *****************************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0                               160.00           0.00      98342.42  **
+                                                        *****************************************************************************************************
+VCD info: dumpfile waveforms/gradient_descent.vcd opened for output.
+! grep failure results.xml
+mv gradient_descent.vcd waveforms/ 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s tpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_tpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_multi_precision vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355940
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_multi_precision.test_int16_mode (1/3)
+                                                            Test INT16 Mode (Standard Matrix Multiplication)
+     0.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:27: DeprecationWarning: The 'units' argument has been renamed to 'unit'.
+                                                          cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+    50.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:93: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          result = pe.pe_psum_out.value.signed_integer
+    50.00ns INFO     cocotb.tpu                         INT16 Test: 300 * 300 = 90000
+    50.00ns INFO     cocotb.regression                  test_multi_precision.test_int16_mode passed
+    50.00ns INFO     cocotb.regression                  running test_multi_precision.test_int8_packed_mode (2/3)
+                                                            Test INT8 Packed Mode (W8A8)
+    50.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:101: DeprecationWarning: The 'units' argument has been renamed to 'unit'.
+                                                          cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+   110.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:143: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          result = pe.pe_psum_out.value.signed_integer
+   110.00ns INFO     cocotb.tpu                         INT8 Test: (10*2) + (-5*4) = 0
+   150.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:168: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          result = pe.pe_psum_out.value.signed_integer
+   150.00ns INFO     cocotb.tpu                         INT8 Test 2: (100*100) + (100*100) = 20000
+   200.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:220: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          last_result = int(pe.pe_psum_out.value.signed_integer)
+  2160.00ns INFO     cocotb.tpu                         INT8 Random Stress Test (50 cycles): Expected 28942, Got 28942
+  2160.00ns INFO     cocotb.regression                  test_multi_precision.test_int8_packed_mode passed
+  2160.00ns INFO     cocotb.regression                  running test_multi_precision.test_int4_packed_mode (3/3)
+                                                            Test INT4 Packed Mode (W4A4)
+  2160.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:228: DeprecationWarning: The 'units' argument has been renamed to 'unit'.
+                                                          cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
+  2220.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:261: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          result = pe.pe_psum_out.value.signed_integer
+  2220.00ns INFO     cocotb.tpu                         INT4 Test 1: (-1*1)*4 = -4
+  2260.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:282: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          result = pe.pe_psum_out.value.signed_integer
+  2260.00ns INFO     cocotb.tpu                         INT4 Test 2: Complex = -17
+  2300.00ns WARNING  py.warnings                        /home/firatkizilboga/tiny-tpu/test/test_multi_precision.py:334: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+                                                          last_result = int(pe.pe_psum_out.value.signed_integer)
+  4260.00ns INFO     cocotb.tpu                         INT4 Random Stress Test (50 cycles): Expected -39, Got -39
+  4260.00ns INFO     cocotb.regression                  test_multi_precision.test_int4_packed_mode passed
+  4260.00ns INFO     cocotb.regression                  ****************************************************************************************************
+                                                        ** TEST                                        STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        ****************************************************************************************************
+                                                        ** test_multi_precision.test_int16_mode         PASS          50.00           0.00      45294.86  **
+                                                        ** test_multi_precision.test_int8_packed_mode   PASS        2110.00           0.01     186830.66  **
+                                                        ** test_multi_precision.test_int4_packed_mode   PASS        2100.00           0.01     183443.47  **
+                                                        ****************************************************************************************************
+                                                        ** TESTS=3 PASS=3 FAIL=0 SKIP=0                             4260.00           0.03     167493.87  **
+                                                        ****************************************************************************************************
+[TPU] t=0: sys_valid_out is ZERO
+! grep failure results.xml
+mv tpu.vcd waveforms/multi_precision.vcd 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s tpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_tpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_int8_e2e vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355941
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_int8_e2e.test_int8_e2e (1/1)
+                                                            INT8 Packed Mode E2E Test - Debug with simple known values
+    10.00ns INFO     cocotb.tpu                         Input A (50 rows):
+    10.00ns INFO     cocotb.tpu                           A[0] = [(-26,51), (-36,-114)]
+    10.00ns INFO     cocotb.tpu                           A[1] = [(-22,-57), (60,-108)]
+    10.00ns INFO     cocotb.tpu                           A[2] = [(-26,-7), (82,86)]
+    10.00ns INFO     cocotb.tpu                           A[3] = [(-54,74), (-41,-12)]
+    10.00ns INFO     cocotb.tpu                           ... (46 more rows)
+    10.00ns INFO     cocotb.tpu                         Weight W:
+    10.00ns INFO     cocotb.tpu                           W[0] = [(-60,-64), (127,-79)]
+    10.00ns INFO     cocotb.tpu                           W[1] = [(-107,-70), (-112,-77)]
+    10.00ns INFO     cocotb.tpu                         Loading 50 input rows to UB...
+   520.00ns INFO     cocotb.tpu                         Loading weights to UB at addr 100...
+[TPU] t=0: sys_valid_out is ZERO
+[SYS] t=570000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=600000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=610000: sys_start, pe_enabled=11, sys_mode=2
+[TPU] t=620000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=620000: vpu_valid_out=[1,0]
+[SYS] t=620000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=620000: sys_valid_out=[1,0]
+[SYS] t=630000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=630000: sys_valid_out=[1,1]
+[TPU] t=630000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=630000: vpu_valid_out=[1,1]
+[TPU] t=640000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=640000: vpu_valid_out=[1,1]
+[SYS] t=640000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=640000: sys_valid_out=[1,1]
+[SYS] t=650000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=650000: sys_valid_out=[1,1]
+[TPU] t=650000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=650000: vpu_valid_out=[1,1]
+[TPU] t=660000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=660000: vpu_valid_out=[1,1]
+[SYS] t=660000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=660000: sys_valid_out=[1,1]
+[SYS] t=670000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=670000: sys_valid_out=[1,1]
+[TPU] t=670000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=670000: vpu_valid_out=[1,1]
+[TPU] t=680000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=680000: vpu_valid_out=[1,1]
+[SYS] t=680000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=680000: sys_valid_out=[1,1]
+[SYS] t=690000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=690000: sys_valid_out=[1,1]
+[TPU] t=690000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=690000: vpu_valid_out=[1,1]
+[TPU] t=700000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=700000: vpu_valid_out=[1,1]
+[SYS] t=700000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=700000: sys_valid_out=[1,1]
+[SYS] t=710000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=710000: sys_valid_out=[1,1]
+[TPU] t=710000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=710000: vpu_valid_out=[1,1]
+[TPU] t=720000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=720000: vpu_valid_out=[1,1]
+[SYS] t=720000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=720000: sys_valid_out=[1,1]
+[SYS] t=730000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=730000: sys_valid_out=[1,1]
+[TPU] t=730000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=730000: vpu_valid_out=[1,1]
+[TPU] t=740000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=740000: vpu_valid_out=[1,1]
+[SYS] t=740000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=740000: sys_valid_out=[1,1]
+[SYS] t=750000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=750000: sys_valid_out=[1,1]
+[TPU] t=750000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=750000: vpu_valid_out=[1,1]
+[TPU] t=760000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=760000: vpu_valid_out=[1,1]
+[SYS] t=760000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=760000: sys_valid_out=[1,1]
+[SYS] t=770000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=770000: sys_valid_out=[1,1]
+[TPU] t=770000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=770000: vpu_valid_out=[1,1]
+[TPU] t=780000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=780000: vpu_valid_out=[1,1]
+[SYS] t=780000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=780000: sys_valid_out=[1,1]
+[SYS] t=790000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=790000: sys_valid_out=[1,1]
+[TPU] t=790000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=790000: vpu_valid_out=[1,1]
+[TPU] t=800000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=800000: vpu_valid_out=[1,1]
+[SYS] t=800000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=800000: sys_valid_out=[1,1]
+[SYS] t=810000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=810000: sys_valid_out=[1,1]
+[TPU] t=810000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=810000: vpu_valid_out=[1,1]
+[TPU] t=820000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=820000: vpu_valid_out=[1,1]
+[SYS] t=820000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=820000: sys_valid_out=[1,1]
+[SYS] t=830000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=830000: sys_valid_out=[1,1]
+[TPU] t=830000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=830000: vpu_valid_out=[1,1]
+[TPU] t=840000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=840000: vpu_valid_out=[1,1]
+[SYS] t=840000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=840000: sys_valid_out=[1,1]
+[SYS] t=850000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=850000: sys_valid_out=[1,1]
+[TPU] t=850000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=850000: vpu_valid_out=[1,1]
+[TPU] t=860000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=860000: vpu_valid_out=[1,1]
+[SYS] t=860000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=860000: sys_valid_out=[1,1]
+[SYS] t=870000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=870000: sys_valid_out=[1,1]
+[TPU] t=870000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=870000: vpu_valid_out=[1,1]
+[TPU] t=880000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=880000: vpu_valid_out=[1,1]
+[SYS] t=880000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=880000: sys_valid_out=[1,1]
+[SYS] t=890000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=890000: sys_valid_out=[1,1]
+[TPU] t=890000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=890000: vpu_valid_out=[1,1]
+[TPU] t=900000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=900000: vpu_valid_out=[1,1]
+[SYS] t=900000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=900000: sys_valid_out=[1,1]
+[SYS] t=910000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=910000: sys_valid_out=[1,1]
+[TPU] t=910000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=910000: vpu_valid_out=[1,1]
+[TPU] t=920000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=920000: vpu_valid_out=[1,1]
+[SYS] t=920000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=920000: sys_valid_out=[1,1]
+[SYS] t=930000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=930000: sys_valid_out=[1,1]
+[TPU] t=930000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=930000: vpu_valid_out=[1,1]
+[TPU] t=940000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=940000: vpu_valid_out=[1,1]
+[SYS] t=940000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=940000: sys_valid_out=[1,1]
+[SYS] t=950000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=950000: sys_valid_out=[1,1]
+[TPU] t=950000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=950000: vpu_valid_out=[1,1]
+[TPU] t=960000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=960000: vpu_valid_out=[1,1]
+[SYS] t=960000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=960000: sys_valid_out=[1,1]
+[SYS] t=970000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=970000: sys_valid_out=[1,1]
+[TPU] t=970000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=970000: vpu_valid_out=[1,1]
+[TPU] t=980000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=980000: vpu_valid_out=[1,1]
+[SYS] t=980000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=980000: sys_valid_out=[1,1]
+[SYS] t=990000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=990000: sys_valid_out=[1,1]
+[TPU] t=990000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=990000: vpu_valid_out=[1,1]
+[TPU] t=1000000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1000000: vpu_valid_out=[1,1]
+[SYS] t=1000000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1000000: sys_valid_out=[1,1]
+[SYS] t=1010000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1010000: sys_valid_out=[1,1]
+[TPU] t=1010000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1010000: vpu_valid_out=[1,1]
+[TPU] t=1020000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1020000: vpu_valid_out=[1,1]
+[SYS] t=1020000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1020000: sys_valid_out=[1,1]
+[SYS] t=1030000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1030000: sys_valid_out=[1,1]
+[TPU] t=1030000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1030000: vpu_valid_out=[1,1]
+[TPU] t=1040000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1040000: vpu_valid_out=[1,1]
+[SYS] t=1040000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1040000: sys_valid_out=[1,1]
+[SYS] t=1050000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1050000: sys_valid_out=[1,1]
+[TPU] t=1050000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1050000: vpu_valid_out=[1,1]
+[TPU] t=1060000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1060000: vpu_valid_out=[1,1]
+[SYS] t=1060000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1060000: sys_valid_out=[1,1]
+[SYS] t=1070000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1070000: sys_valid_out=[1,1]
+[TPU] t=1070000: sys_valid_out in TPU  1110.00ns INFO     cocotb.tpu                         Computing expected results using Python golden model...
+  1110.00ns INFO     cocotb.tpu                         Golden Col 0 (first 5): [2730, 21120, 5628, -5755, 6103]...
+  1110.00ns INFO     cocotb.tpu                         Golden Col 1 (first 5): [12022, 7940, -12534, 6114, 2123]...
+  1110.00ns INFO     cocotb.tpu                         Captured Output 1 (50 values): [2730, 21120, 5628, -5755, 6103]...
+  1110.00ns INFO     cocotb.tpu                         Captured Output 2 (49 values): [12022, 7940, -12534, 6114, 2123]...
+  1110.00ns INFO     cocotb.tpu                         Verifying Column 0 (Channel 1) against golden model...
+  1110.00ns INFO     cocotb.tpu                         Verifying Column 1 (Channel 2) against golden model...
+  1110.00ns INFO     cocotb.tpu                         ✅ INT8 E2E Test PASSED - BIT-PERFECT MATCH!
+  1110.00ns INFO     cocotb.tpu                           Matrix size: 50x2 inputs, 2x2 random weights
+  1110.00ns INFO     cocotb.tpu                           Channel 1: 50 outputs, 50 unique
+  1110.00ns INFO     cocotb.tpu                           Channel 2: 49 outputs, 49 unique
+  1110.00ns INFO     cocotb.regression                  test_int8_e2e.test_int8_e2e passed
+  1110.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_int8_e2e.test_int8_e2e    PASS        1110.00           0.03      33717.00  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               1110.00           0.03      32229.70  **
+                                                        **************************************************************************************
+ scope=[1,1]
+[TPU] t=1070000: vpu_valid_out=[1,1]
+[TPU] t=1080000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1080000: vpu_valid_out=[1,1]
+[SYS] t=1080000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1080000: sys_valid_out=[1,1]
+[SYS] t=1090000: sys_start, pe_enabled=11, sys_mode=2
+[SYS] t=1090000: sys_valid_out=[1,1]
+[TPU] t=1090000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1090000: vpu_valid_out=[1,1]
+[TPU] t=1100000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1100000: vpu_valid_out=[1,1]
+[SYS] t=1100000: sys_valid_out=[1,1]
+[SYS] t=1110000: sys_valid_out=[1,1]
+[TPU] t=1110000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1110000: vpu_valid_out=[1,1]
+! grep failure results.xml
+mv tpu.vcd waveforms/int8_e2e.vcd 2>/dev/null || true
+iverilog -o sim_build/sim.vvp -s tpu -s dump -g2012 src/pe.sv src/leaky_relu_child.sv src/leaky_relu_parent.sv src/leaky_relu_derivative_child.sv src/leaky_relu_derivative_parent.sv src/systolic.sv src/bias_child.sv src/bias_parent.sv src/fixedpoint.sv src/control_unit.sv src/unified_buffer.sv src/vpu.sv src/loss_parent.sv src/loss_child.sv src/tpu.sv src/gradient_descent.sv test/dump_tpu.sv
+PYTHONOPTIMIZE= COCOTB_TEST_MODULES=test_int4_e2e vvp -M /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb/libs -m libcocotbvpi_icarus sim_build/sim.vvp
+     -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:93   in _embed_init_python              Using Python 3.13.11 interpreter at /usr/bin/python3
+     -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (stable)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1767355941
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /home/firatkizilboga/.local/lib/python3.13/site-packages/cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running test_int4_e2e.test_int4_e2e (1/1)
+                                                            INT4 Packed Mode E2E Test - Debug with simple known values
+    10.00ns INFO     cocotb.tpu                         Input A (50 rows):
+    10.00ns INFO     cocotb.tpu                           A[0] = [(-2,-5,4,6), (2,-1,4,-4)]
+    10.00ns INFO     cocotb.tpu                           A[1] = [(-2,1,-6,-2), (2,2,-1,-4)]
+    10.00ns INFO     cocotb.tpu                           A[2] = [(-5,-1,-1,-6), (-3,-4,-7,-1)]
+    10.00ns INFO     cocotb.tpu                           A[3] = [(3,5,-3,-7), (7,3,-4,-8)]
+    10.00ns INFO     cocotb.tpu                           ... (46 more rows)
+    10.00ns INFO     cocotb.tpu                         Weight W:
+    10.00ns INFO     cocotb.tpu                           W[0] = [(-4,-8,7,-7), (-3,2,-8,-5)]
+    10.00ns INFO     cocotb.tpu                           W[1] = [(-7,3,3,-6), (6,6,-1,-8)]
+    10.00ns INFO     cocotb.tpu                         Loading 50 input rows to UB...
+   520.00ns INFO     cocotb.tpu                         Loading weights to UB at addr 100...
+[TPU] t=0: sys_valid_out is ZERO
+[SYS] t=570000: pe_enabled set to 00000000000000000000000000000011
+[SYS] t=600000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=610000: sys_start, pe_enabled=11, sys_mode=3
+[TPU] t=620000: sys_valid_out in TPU scope=[1,0]
+[TPU] t=620000: vpu_valid_out=[1,0]
+[SYS] t=620000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=620000: sys_valid_out=[1,0]
+[SYS] t=630000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=630000: sys_valid_out=[1,1]
+[TPU] t=630000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=630000: vpu_valid_out=[1,1]
+[TPU] t=640000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=640000: vpu_valid_out=[1,1]
+[SYS] t=640000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=640000: sys_valid_out=[1,1]
+[SYS] t=650000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=650000: sys_valid_out=[1,1]
+[TPU] t=650000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=650000: vpu_valid_out=[1,1]
+[TPU] t=660000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=660000: vpu_valid_out=[1,1]
+[SYS] t=660000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=660000: sys_valid_out=[1,1]
+[SYS] t=670000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=670000: sys_valid_out=[1,1]
+[TPU] t=670000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=670000: vpu_valid_out=[1,1]
+[TPU] t=680000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=680000: vpu_valid_out=[1,1]
+[SYS] t=680000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=680000: sys_valid_out=[1,1]
+[SYS] t=690000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=690000: sys_valid_out=[1,1]
+[TPU] t=690000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=690000: vpu_valid_out=[1,1]
+[TPU] t=700000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=700000: vpu_valid_out=[1,1]
+[SYS] t=700000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=700000: sys_valid_out=[1,1]
+[SYS] t=710000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=710000: sys_valid_out=[1,1]
+[TPU] t=710000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=710000: vpu_valid_out=[1,1]
+[TPU] t=720000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=720000: vpu_valid_out=[1,1]
+[SYS] t=720000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=720000: sys_valid_out=[1,1]
+[SYS] t=730000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=730000: sys_valid_out=[1,1]
+[TPU] t=730000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=730000: vpu_valid_out=[1,1]
+[TPU] t=740000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=740000: vpu_valid_out=[1,1]
+[SYS] t=740000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=740000: sys_valid_out=[1,1]
+[SYS] t=750000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=750000: sys_valid_out=[1,1]
+[TPU] t=750000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=750000: vpu_valid_out=[1,1]
+[TPU] t=760000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=760000: vpu_valid_out=[1,1]
+[SYS] t=760000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=760000: sys_valid_out=[1,1]
+[SYS] t=770000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=770000: sys_valid_out=[1,1]
+[TPU] t=770000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=770000: vpu_valid_out=[1,1]
+[TPU] t=780000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=780000: vpu_valid_out=[1,1]
+[SYS] t=780000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=780000: sys_valid_out=[1,1]
+[SYS] t=790000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=790000: sys_valid_out=[1,1]
+[TPU] t=790000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=790000: vpu_valid_out=[1,1]
+[TPU] t=800000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=800000: vpu_valid_out=[1,1]
+[SYS] t=800000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=800000: sys_valid_out=[1,1]
+[SYS] t=810000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=810000: sys_valid_out=[1,1]
+[TPU] t=810000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=810000: vpu_valid_out=[1,1]
+[TPU] t=820000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=820000: vpu_valid_out=[1,1]
+[SYS] t=820000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=820000: sys_valid_out=[1,1]
+[SYS] t=830000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=830000: sys_valid_out=[1,1]
+[TPU] t=830000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=830000: vpu_valid_out=[1,1]
+[TPU] t=840000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=840000: vpu_valid_out=[1,1]
+[SYS] t=840000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=840000: sys_valid_out=[1,1]
+[SYS] t=850000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=850000: sys_valid_out=[1,1]
+[TPU] t=850000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=850000: vpu_valid_out=[1,1]
+[TPU] t=860000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=860000: vpu_valid_out=[1,1]
+[SYS] t=860000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=860000: sys_valid_out=[1,1]
+[SYS] t=870000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=870000: sys_valid_out=[1,1]
+[TPU] t=870000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=870000: vpu_valid_out=[1,1]
+[TPU] t=880000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=880000: vpu_valid_out=[1,1]
+[SYS] t=880000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=880000: sys_valid_out=[1,1]
+[SYS] t=890000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=890000: sys_valid_out=[1,1]
+[TPU] t=890000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=890000: vpu_valid_out=[1,1]
+[TPU] t=900000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=900000: vpu_valid_out=[1,1]
+[SYS] t=900000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=900000: sys_valid_out=[1,1]
+[SYS] t=910000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=910000: sys_valid_out=[1,1]
+[TPU] t=910000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=910000: vpu_valid_out=[1,1]
+[TPU] t=920000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=920000: vpu_valid_out=[1,1]
+[SYS] t=920000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=920000: sys_valid_out=[1,1]
+[SYS] t=930000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=930000: sys_valid_out=[1,1]
+[TPU] t=930000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=930000: vpu_valid_out=[1,1]
+[TPU] t=940000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=940000: vpu_valid_out=[1,1]
+[SYS] t=940000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=940000: sys_valid_out=[1,1]
+[SYS] t=950000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=950000: sys_valid_out=[1,1]
+[TPU] t=950000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=950000: vpu_valid_out=[1,1]
+[TPU] t=960000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=960000: vpu_valid_out=[1,1]
+[SYS] t=960000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=960000: sys_valid_out=[1,1]
+[SYS] t=970000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=970000: sys_valid_out=[1,1]
+[TPU] t=970000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=970000: vpu_valid_out=[1,1]
+[TPU] t=980000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=980000: vpu_valid_out=[1,1]
+[SYS] t=980000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=980000: sys_valid_out=[1,1]
+[SYS] t=990000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=990000: sys_valid_out=[1,1]
+[TPU] t=990000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=990000: vpu_valid_out=[1,1]
+[TPU] t=1000000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1000000: vpu_valid_out=[1,1]
+[SYS] t=1000000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1000000: sys_valid_out=[1,1]
+[SYS] t=1010000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1010000: sys_valid_out=[1,1]
+[TPU] t=1010000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1010000: vpu_valid_out=[1,1]
+[TPU] t=1020000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1020000: vpu_valid_out=[1,1]
+[SYS] t=1020000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1020000: sys_valid_out=[1,1]
+[SYS] t=1030000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1030000: sys_valid_out=[1,1]
+[TPU] t=1030000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1030000: vpu_valid_out=[1,1]
+[TPU] t=1040000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1040000: vpu_valid_out=[1,1]
+[SYS] t=1040000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1040000: sys_valid_out=[1,1]
+[SYS] t=1050000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1050000: sys_valid_out=[1,1]
+[TPU] t=1050000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1050000: vpu_valid_out=[1,1]
+[TPU] t=1060000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1060000: vpu_valid_out=[1,1]
+[SYS] t=1060000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1060000: sys_valid_out=[1,1]
+[SYS] t=1070000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1070000: sys_valid_out=[1,1]
+[TPU] t=1070000: sys_valid_out in TPU  1110.00ns INFO     cocotb.tpu                         Computing expected results using Python golden model...
+  1110.00ns INFO     cocotb.tpu                         Golden Col 0 (first 5): [14, -2, 125, 33, -24]...
+  1110.00ns INFO     cocotb.tpu                         Golden Col 1 (first 5): [9, 68, 38, 155, -41]...
+  1110.00ns INFO     cocotb.tpu                         Captured Output 1 (50 values): [14, -2, 125, 33, -24]...
+  1110.00ns INFO     cocotb.tpu                         Captured Output 2 (49 values): [9, 68, 38, 155, -41]...
+  1110.00ns INFO     cocotb.tpu                         Verifying Column 0 (Channel 1) against golden model...
+  1110.00ns INFO     cocotb.tpu                         Verifying Column 1 (Channel 2) against golden model...
+  1110.00ns INFO     cocotb.tpu                         ✅ INT4 E2E Test PASSED - BIT-PERFECT MATCH!
+  1110.00ns INFO     cocotb.tpu                           Matrix size: 50x2 inputs, 2x2 random weights
+  1110.00ns INFO     cocotb.tpu                           Channel 1: 50 outputs, 46 unique
+  1110.00ns INFO     cocotb.tpu                           Channel 2: 49 outputs, 47 unique
+  1110.00ns INFO     cocotb.regression                  test_int4_e2e.test_int4_e2e passed
+  1110.00ns INFO     cocotb.regression                  **************************************************************************************
+                                                        ** TEST                          STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                        **************************************************************************************
+                                                        ** test_int4_e2e.test_int4_e2e    PASS        1110.00           0.01      77571.35  **
+                                                        **************************************************************************************
+                                                        ** TESTS=1 PASS=1 FAIL=0 SKIP=0               1110.00           0.02      69341.79  **
+                                                        **************************************************************************************
+ scope=[1,1]
+[TPU] t=1070000: vpu_valid_out=[1,1]
+[TPU] t=1080000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1080000: vpu_valid_out=[1,1]
+[SYS] t=1080000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1080000: sys_valid_out=[1,1]
+[SYS] t=1090000: sys_start, pe_enabled=11, sys_mode=3
+[SYS] t=1090000: sys_valid_out=[1,1]
+[TPU] t=1090000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1090000: vpu_valid_out=[1,1]
+[TPU] t=1100000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1100000: vpu_valid_out=[1,1]
+[SYS] t=1100000: sys_valid_out=[1,1]
+[SYS] t=1110000: sys_valid_out=[1,1]
+[TPU] t=1110000: sys_valid_out in TPU scope=[1,1]
+[TPU] t=1110000: vpu_valid_out=[1,1]
+! grep failure results.xml
+mv tpu.vcd waveforms/int4_e2e.vcd 2>/dev/null || true

@@ -1,136 +1,105 @@
-// TODO: get rid of the mixing of non blocking and blocking assignments
-
 `timescale 1ns/1ps
 `default_nettype none
 
 module unified_buffer #(
-    parameter int UNIFIED_BUFFER_WIDTH = 128,
-    parameter int SYSTOLIC_ARRAY_WIDTH = 2
+    parameter int N = 2,
+    parameter int DEPTH = 1024
 )(
     input logic clk,
     input logic rst,
 
     // Write ports from VPU to UB
-    input logic [15:0] ub_wr_data_in [SYSTOLIC_ARRAY_WIDTH],
-    input logic ub_wr_valid_in [SYSTOLIC_ARRAY_WIDTH],
+    input logic signed [N-1:0][15:0] ub_wr_data_in,
+    input logic [N-1:0] ub_wr_valid_in,
 
     // Write ports from host to UB (for loading in parameters)
-    input logic [15:0] ub_wr_host_data_in [SYSTOLIC_ARRAY_WIDTH],
-    input logic ub_wr_host_valid_in [SYSTOLIC_ARRAY_WIDTH],
+    input logic signed [N-1:0][15:0] ub_wr_host_data_in,
+    input logic [N-1:0] ub_wr_host_valid_in,
 
     // Read instruction input from instruction memory
     input logic ub_rd_start_in,
-    input logic ub_rd_transpose,
     input logic [8:0] ub_ptr_select,
     input logic [15:0] ub_rd_addr_in,
-    input logic [15:0] ub_rd_row_size,
-    input logic [15:0] ub_rd_col_size,
+    input logic [15:0] ub_rd_count, // Replaces row_size/col_size for linear streaming
 
-    // Learning rate input
+    // Learning rate input (passed to gradient descent)
     input logic [15:0] learning_rate_in,
 
-    // Read ports from UB to left side of systolic array
-    // (I had trouble connecting arrays of ports to other modules in the tpu.sv file for some reason so I had to split them like so)
-    output logic [15:0] ub_rd_input_data_out_0,
-    output logic [15:0] ub_rd_input_data_out_1,
-    output logic ub_rd_input_valid_out_0,
-    output logic ub_rd_input_valid_out_1,
+    // Read ports (Packed Arrays)
+    // 0: Input (to Skew Buffer -> Systolic Left)
+    output logic signed [N-1:0][15:0] ub_rd_input_data_out,
+    output logic ub_rd_input_valid_out,
 
-    // Read ports from UB to top of systolic array
-    output logic [15:0] ub_rd_weight_data_out_0,
-    output logic [15:0] ub_rd_weight_data_out_1,
-    output logic ub_rd_weight_valid_out_0,
-    output logic ub_rd_weight_valid_out_1,
+    // 1: Weight (to Systolic Top)
+    output logic signed [N-1:0][15:0] ub_rd_weight_data_out,
+    output logic ub_rd_weight_valid_out,
 
-    // Read ports from UB to bias modules in VPU
-    output logic [15:0] ub_rd_bias_data_out_0,
-    output logic [15:0] ub_rd_bias_data_out_1,
+    // 2: Bias (to VPU)
+    output logic signed [N-1:0][15:0] ub_rd_bias_data_out,
+    
+    // 3: Y (Loss Target) (to VPU)
+    output logic signed [N-1:0][15:0] ub_rd_Y_data_out,
 
-    // Read ports from UB to loss modules (Y matrices) in VPU
-    output logic [15:0] ub_rd_Y_data_out_0,
-    output logic [15:0] ub_rd_Y_data_out_1,
-
-    // Read ports from UB to activation derivative modules (H matrices) in VPU
-    output logic [15:0] ub_rd_H_data_out_0,
-    output logic [15:0] ub_rd_H_data_out_1,
-
-    // Outputs to send number of columns to systolic array
-    output logic [15:0] ub_rd_col_size_out,
-    output logic ub_rd_col_size_valid_out
+    // 4: H (Activation Derivative) (to VPU)
+    output logic signed [N-1:0][15:0] ub_rd_H_data_out
 );
 
-    logic [15:0] ub_memory [0:UNIFIED_BUFFER_WIDTH-1];
-
-    logic [15:0] ub_rd_input_data_out [SYSTOLIC_ARRAY_WIDTH];
-    logic ub_rd_input_valid_out [SYSTOLIC_ARRAY_WIDTH];
-    logic [15:0] ub_rd_weight_data_out [SYSTOLIC_ARRAY_WIDTH];
-    logic ub_rd_weight_valid_out [SYSTOLIC_ARRAY_WIDTH];
-    logic [15:0] ub_rd_bias_data_out [SYSTOLIC_ARRAY_WIDTH];
-    logic [15:0] ub_rd_Y_data_out [SYSTOLIC_ARRAY_WIDTH];
-    logic [15:0] ub_rd_H_data_out [SYSTOLIC_ARRAY_WIDTH];
+    // Wide Memory: Depth x (N*16 bits)
+    // We use a packed array for the data width to allow easy indexing
+    logic signed [N-1:0][15:0] ub_memory [0:DEPTH-1];
 
     logic [15:0] wr_ptr;
 
-    // Internal logic for reading inputs from UB to left side of systolic array
-    logic [15:0] rd_input_ptr;
-    logic [15:0] rd_input_row_size;
-    logic [15:0] rd_input_col_size;
-    logic [15:0] rd_input_time_counter;
-    logic rd_input_transpose;
+    // Read Pointers and Counters
+    logic [15:0] ptr_input;
+    logic [15:0] cnt_input;
+    logic active_input;
 
-    // Internal logic for reading weights from UB to left side of systolic array
-    logic signed [15:0] rd_weight_ptr;
-    logic [15:0] rd_weight_row_size;
-    logic [15:0] rd_weight_col_size;
-    logic [15:0] rd_weight_time_counter;
-    logic rd_weight_transpose;
-    logic [15:0] rd_weight_skip_size;
+    logic [15:0] ptr_weight;
+    logic [15:0] cnt_weight;
+    logic active_weight;
 
-    // Internal logic for bias inputs from UB to bias modules in VPU
-    logic [15:0] rd_bias_ptr;
-    logic [15:0] rd_bias_row_size;
-    logic [15:0] rd_bias_col_size;
-    logic [15:0] rd_bias_time_counter;
+    logic [15:0] ptr_bias;
+    logic [15:0] cnt_bias;
+    logic active_bias;
 
-    // Internal logic for Y inputs from UB to loss modules in VPU
-    logic [15:0] rd_Y_ptr;
-    logic [15:0] rd_Y_row_size;
-    logic [15:0] rd_Y_col_size;
-    logic [15:0] rd_Y_time_counter;
+    logic [15:0] ptr_Y;
+    logic [15:0] cnt_Y;
+    logic active_Y;
 
-    // Internal logic for bias inputs from UB to activation derivative modules in VPU
-    logic [15:0] rd_H_ptr;
-    logic [15:0] rd_H_row_size;
-    logic [15:0] rd_H_col_size;
-    logic [15:0] rd_H_time_counter; 
-
-    // Internal logic for bias gradient descent inputs from UB to gradient descent modules
-    logic [15:0] rd_grad_bias_ptr;
-    logic [15:0] rd_grad_bias_row_size;
-    logic [15:0] rd_grad_bias_col_size;
-    logic [15:0] rd_grad_bias_time_counter; 
-
-    // Internal logic for weight gradient descent inputs from UB to gradient descent modules
-    logic [15:0] rd_grad_weight_ptr;
-    logic [15:0] rd_grad_weight_row_size;
-    logic [15:0] rd_grad_weight_col_size;
-    logic [15:0] rd_grad_weight_time_counter; 
-
-    // Internal logic for gradient descent inputs from UB to gradient descent modules
-    logic [15:0] value_old_in [SYSTOLIC_ARRAY_WIDTH];
-    logic grad_descent_valid_in [SYSTOLIC_ARRAY_WIDTH];
-    logic [15:0] value_updated_out [SYSTOLIC_ARRAY_WIDTH];
-    logic grad_descent_done_out [SYSTOLIC_ARRAY_WIDTH];
+    logic [15:0] ptr_H;
+    logic [15:0] cnt_H;
+    logic active_H;
     
-    // Where to write gradients to UB
-    logic [15:0] grad_descent_ptr;
+    logic [15:0] ptr_grad_bias;
+    logic [15:0] cnt_grad_bias;
+    logic active_grad_bias;
 
-    // Whether the gradients are biases or weights (0 for biases, 1 for weights)
-    logic grad_bias_or_weight;
+    logic [15:0] ptr_grad_weight;
+    logic [15:0] cnt_grad_weight;
+    logic active_grad_weight;
 
+    // Gradient Descent Integration
+    // To maintain existing functionality, we keep the GD modules here.
+    // They intercept the write-back from VPU or allow read-modify-write?
+    // In original code: UB read -> GD module -> UB write.
+    // So GD acts as a "Read Channel" that processes data and writes it back?
+    // No, original code:
+    // `grad_in` came from `ub_wr_data_in` (VPU output).
+    // `value_old_in` came from `ub_memory` (Read port).
+    // `value_updated_out` went to `ub_memory` (Write port).
+    
+    logic [N-1:0] grad_descent_valid_in;
+    logic signed [N-1:0][15:0] value_old_in; // Read from memory
+    logic signed [N-1:0][15:0] value_updated_out;
+    logic [N-1:0] grad_descent_done_out;
+    logic grad_bias_or_weight; // 0 for bias, 1 for weight
+    logic [15:0] ptr_grad_write; // Write pointer for GD results
+
+    // Generate Gradient Descent Modules
     genvar i;
     generate
-        for (i=0; i<SYSTOLIC_ARRAY_WIDTH; i++) begin : gradient_descent_gen
+        for (i=0; i<N; i++) begin : gradient_descent_gen
             gradient_descent gradient_descent_inst (
                 .clk(clk),
                 .rst(rst),
@@ -145,407 +114,224 @@ module unified_buffer #(
         end
     endgenerate
 
-    // (I had trouble connecting arrays of ports to other modules in the tpu.sv file for some reason, so I had to connect them to split up output ports like so)
-    assign ub_rd_input_data_out_0 = ub_rd_input_data_out[0];
-    assign ub_rd_input_data_out_1 = ub_rd_input_data_out[1];
-    assign ub_rd_input_valid_out_0 = ub_rd_input_valid_out[0];
-    assign ub_rd_input_valid_out_1 = ub_rd_input_valid_out[1];
-
-    assign ub_rd_weight_data_out_0 = ub_rd_weight_data_out[0];
-    assign ub_rd_weight_data_out_1 = ub_rd_weight_data_out[1];
-    assign ub_rd_weight_valid_out_0 = ub_rd_weight_valid_out[0];
-    assign ub_rd_weight_valid_out_1 = ub_rd_weight_valid_out[1];
-
-    assign ub_rd_bias_data_out_0 = ub_rd_bias_data_out[0];
-    assign ub_rd_bias_data_out_1 = ub_rd_bias_data_out[1];
-
-    assign ub_rd_Y_data_out_0 = ub_rd_Y_data_out[0];
-    assign ub_rd_Y_data_out_1 = ub_rd_Y_data_out[1];
-
-    assign ub_rd_H_data_out_0 = ub_rd_H_data_out[0];
-    assign ub_rd_H_data_out_1 = ub_rd_H_data_out[1];
-
+    // Control Logic
     always_comb begin
-        //READING LOGIC (UB to left side of systolic array)
-        if (ub_rd_start_in) begin
-            case (ub_ptr_select)
-                0: begin
-                    rd_input_transpose = ub_rd_transpose;
-                    rd_input_ptr = ub_rd_addr_in;
-
-                    if(ub_rd_transpose) begin   // Switch columns and rows!
-                        rd_input_row_size = ub_rd_col_size;
-                        rd_input_col_size = ub_rd_row_size;
-                    end else begin
-                        rd_input_row_size = ub_rd_row_size;
-                        rd_input_col_size = ub_rd_col_size;
-                    end
-
-                    rd_input_time_counter = '0;
-                end
-                1: begin
-                    rd_weight_transpose = ub_rd_transpose;
-
-                    if(ub_rd_transpose) begin   // Switch columns and rows!
-                        rd_weight_row_size = ub_rd_col_size;
-                        rd_weight_col_size = ub_rd_row_size;
-                        rd_weight_ptr = ub_rd_addr_in + ub_rd_col_size - 1;
-                        ub_rd_col_size_out = ub_rd_row_size;
-                    end else begin
-                        rd_weight_row_size = ub_rd_row_size;
-                        rd_weight_col_size = ub_rd_col_size;
-                        rd_weight_ptr = ub_rd_addr_in + ub_rd_row_size*ub_rd_col_size - ub_rd_col_size;
-                        ub_rd_col_size_out = ub_rd_col_size;
-                    end
-
-                    rd_weight_skip_size = ub_rd_col_size + 1;
-                    rd_weight_time_counter = '0;
-                    ub_rd_col_size_valid_out = 1'b1;
-                end
-                2: begin
-                    rd_bias_ptr = ub_rd_addr_in;
-                    rd_bias_row_size = ub_rd_row_size;
-                    rd_bias_col_size = ub_rd_col_size;
-                    rd_bias_time_counter = '0;
-                end
-                3: begin
-                    rd_Y_ptr = ub_rd_addr_in;
-                    rd_Y_row_size = ub_rd_row_size;
-                    rd_Y_col_size = ub_rd_col_size;
-                    rd_Y_time_counter = '0;
-                end
-                4: begin
-                    rd_H_ptr = ub_rd_addr_in;
-                    rd_H_row_size = ub_rd_row_size;
-                    rd_H_col_size = ub_rd_col_size;
-                    rd_H_time_counter = '0;
-                end
-                5: begin
-                    rd_grad_bias_ptr = ub_rd_addr_in;
-                    rd_grad_bias_row_size = ub_rd_row_size;
-                    rd_grad_bias_col_size = ub_rd_col_size;
-                    rd_grad_bias_time_counter = '0;
-                    grad_bias_or_weight = 1'b0;
-                    grad_descent_ptr = ub_rd_addr_in;
-                end
-                6: begin
-                    rd_grad_weight_ptr = ub_rd_addr_in;
-                    rd_grad_weight_row_size = ub_rd_row_size;
-                    rd_grad_weight_col_size = ub_rd_col_size;
-                    rd_grad_weight_time_counter = '0;
-                    grad_bias_or_weight = 1'b1;
-                    grad_descent_ptr = ub_rd_addr_in;
-                end
-            endcase
+        // GD valid logic: if we are actively reading for GD, enable the GD modules
+        // The original logic checked if read counters were active.
+        if (active_grad_bias || active_grad_weight) begin
+            grad_descent_valid_in = ub_wr_valid_in; // Trigger when VPU sends gradients
         end else begin
-            ub_rd_col_size_out = 0;
-            ub_rd_col_size_valid_out = 1'b0;
+            grad_descent_valid_in = '0;
         end
     end
 
-    always_comb begin   // Automatically turn on gradient descent modules when bias or weight gradient descent pointers have been set by a read command
-        if (
-            rd_grad_bias_time_counter < rd_grad_bias_row_size + rd_grad_bias_col_size ||
-            rd_grad_weight_time_counter < rd_grad_weight_row_size + rd_grad_weight_col_size
-        ) begin
-            for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                grad_descent_valid_in[i] = ub_wr_valid_in[i];
-            end
-        end else begin
-            for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                grad_descent_valid_in[i] = 1'b0;
-            end
-        end
-    end 
-
-    always @(posedge clk or posedge rst) begin
-        /*
-        // Display variables in GTKWave
-        for (int i = 0; i < UNIFIED_BUFFER_WIDTH; i++) begin
-            $dumpvars(0, ub_memory[i]);
-        end
-        */
-        /*
-        for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-            $dumpvars(0, ub_wr_data_in[i]);
-            $dumpvars(0, ub_wr_valid_in[i]);
-            $dumpvars(0, ub_rd_input_data_out[i]);
-            $dumpvars(0, ub_rd_input_valid_out[i]);
-            $dumpvars(0, ub_rd_weight_data_out[i]);
-            $dumpvars(0, ub_rd_weight_valid_out[i]);
-            $dumpvars(0, ub_rd_bias_data_out[i]);
-            $dumpvars(0, ub_rd_Y_data_out[i]);
-            $dumpvars(0, ub_rd_H_data_out[i]);
-            $dumpvars(0, value_old_in[i]);
-            $dumpvars(0, grad_descent_valid_in[i]);
-            $dumpvars(0, grad_descent_done_out[i]);
-            $dumpvars(0, value_updated_out[i]);
-        end
-        */
-
-
+    // Sequential Logic
+    always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            // reset all memory to 0
-            for (int i = 0; i < UNIFIED_BUFFER_WIDTH; i++) begin
-                ub_memory[i] <= '0;
-            end
-
-            // set internal registers to 0
-            for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                ub_rd_input_data_out[i] <= '0;
-                ub_rd_input_valid_out[i] <= '0;
-                ub_rd_weight_data_out[i] <= '0;
-                ub_rd_weight_valid_out[i] <= '0;
-                ub_rd_bias_data_out[i] <= '0;
-                ub_rd_Y_data_out[i] <= '0;
-                ub_rd_H_data_out[i] <= '0;
-                value_old_in[i] <= '0;
-                grad_descent_valid_in[i] <= '0;
-            end
-
             wr_ptr <= '0;
+            
+            ptr_input <= '0; cnt_input <= '0; active_input <= 0;
+            ptr_weight <= '0; cnt_weight <= '0; active_weight <= 0;
+            ptr_bias <= '0; cnt_bias <= '0; active_bias <= 0;
+            ptr_Y <= '0; cnt_Y <= '0; active_Y <= 0;
+            ptr_H <= '0; cnt_H <= '0; active_H <= 0;
+            
+            ptr_grad_bias <= '0; cnt_grad_bias <= '0; active_grad_bias <= 0;
+            ptr_grad_weight <= '0; cnt_grad_weight <= '0; active_grad_weight <= 0;
+            
+            ptr_grad_write <= '0;
+            
+            ub_rd_input_data_out <= '0; ub_rd_input_valid_out <= 0;
+            ub_rd_weight_data_out <= '0; ub_rd_weight_valid_out <= 0;
+            ub_rd_bias_data_out <= '0;
+            ub_rd_Y_data_out <= '0;
+            ub_rd_H_data_out <= '0;
+            
+            value_old_in <= '0;
 
-            rd_input_ptr <= '0;
-            rd_input_row_size <= '0;
-            rd_input_col_size <= '0;
-            rd_input_time_counter <= '0;
-            rd_input_transpose <= '0;
+            // Reset memory? (Optional, might be expensive for large RAMs)
+            // for (int k=0; k<DEPTH; k++) ub_memory[k] <= '0;
 
-            rd_weight_ptr <= '0;
-            rd_weight_row_size <= '0;
-            rd_weight_col_size <= '0;
-            rd_weight_time_counter <= '0;
-            rd_weight_transpose <= '0;
-
-            rd_bias_ptr <= '0;
-            rd_bias_row_size <= '0;
-            rd_bias_col_size <= '0;
-            rd_bias_time_counter <= '0;
-
-            rd_Y_ptr <= '0;
-            rd_Y_row_size <= '0;
-            rd_Y_col_size <= '0;
-            rd_Y_time_counter <= '0;
-
-            rd_H_ptr <= '0;
-            rd_H_row_size <= '0;
-            rd_H_col_size <= '0;
-            rd_H_time_counter <= '0;
-
-            rd_grad_bias_ptr <= '0;
-            rd_grad_bias_row_size <= '0;
-            rd_grad_bias_col_size <= '0;
-            rd_grad_bias_time_counter <= '0;
-
-            rd_grad_weight_ptr <= '0;
-            rd_grad_weight_row_size <= '0;
-            rd_grad_weight_col_size <= '0;
-            rd_grad_weight_time_counter <= '0;
         end else begin
-            // WRITING LOGIC
-            // matrices are stored in row major format
-            // if there are two columns, the first column will be stored at even indices and the second column will be stored at odd indices
-            for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin     // FOR LOOP SHOULD DECREMENT TO STORE IN ROW MAJOR ORDER!!! yooooooooo
-                if (ub_wr_valid_in[i]) begin
-                    ub_memory[wr_ptr] <= ub_wr_data_in[i];
-                    wr_ptr = wr_ptr + 1;                                // I should get rid of this (not good to mix non blocking and blocking assignments) but it works for now
-                end else if (ub_wr_host_valid_in[i]) begin
-                    ub_memory[wr_ptr] <= ub_wr_host_data_in[i];
-                    wr_ptr = wr_ptr + 1;
-                end
+            // ==================
+            // CONFIGURATION
+            // ==================
+            if (ub_rd_start_in) begin
+                case (ub_ptr_select)
+                    0: begin // Input
+                        ptr_input <= ub_rd_addr_in;
+                        cnt_input <= ub_rd_count;
+                        active_input <= 1;
+                    end
+                    1: begin // Weight
+                        ptr_weight <= ub_rd_addr_in;
+                        cnt_weight <= ub_rd_count;
+                        active_weight <= 1;
+                    end
+                    2: begin // Bias
+                        ptr_bias <= ub_rd_addr_in;
+                        cnt_bias <= ub_rd_count;
+                        active_bias <= 1;
+                    end
+                    3: begin // Y
+                        ptr_Y <= ub_rd_addr_in;
+                        cnt_Y <= ub_rd_count;
+                        active_Y <= 1;
+                    end
+                    4: begin // H
+                        ptr_H <= ub_rd_addr_in;
+                        cnt_H <= ub_rd_count;
+                        active_H <= 1;
+                    end
+                    5: begin // Grad Bias
+                        ptr_grad_bias <= ub_rd_addr_in;
+                        cnt_grad_bias <= ub_rd_count;
+                        active_grad_bias <= 1;
+                        ptr_grad_write <= ub_rd_addr_in; // Write back to same location
+                        grad_bias_or_weight <= 0;
+                    end
+                    6: begin // Grad Weight
+                        ptr_grad_weight <= ub_rd_addr_in;
+                        cnt_grad_weight <= ub_rd_count;
+                        active_grad_weight <= 1;
+                        ptr_grad_write <= ub_rd_addr_in;
+                        grad_bias_or_weight <= 1;
+                    end
+                endcase
             end
 
-            //WRITING LOGIC (for gradient descent modules to UB)
-            if (grad_bias_or_weight) begin
-                for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                    if (grad_descent_done_out[i]) begin
-                        ub_memory[grad_descent_ptr] <= value_updated_out[i];
-                        grad_descent_ptr = grad_descent_ptr + 1;
+            // ==================
+            // WRITE LOGIC
+            // ==================
+            
+            // Host Write (Priority 1)
+            // Assumes writing full vectors or uses mask.
+            for (int k=0; k<N; k++) begin
+                 if (ub_wr_host_valid_in[k]) begin
+                     ub_memory[wr_ptr][k] <= ub_wr_host_data_in[k];
+                 end
+            end
+            if (ub_wr_host_valid_in != 0) begin
+                wr_ptr <= wr_ptr + 1;
+            end
+            
+            // VPU Write (Priority 2)
+            // Only if not host writing? Or mix? Original code had priority.
+            else begin 
+                for (int k=0; k<N; k++) begin
+                    if (ub_wr_valid_in[k]) begin
+                        ub_memory[wr_ptr][k] <= ub_wr_data_in[k];
                     end
                 end
-            end else begin
-                for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                    if (grad_descent_done_out[i]) begin
-                        ub_memory[grad_descent_ptr + i] <= value_updated_out[i];
-                    end
+                if (ub_wr_valid_in != 0) begin
+                    wr_ptr <= wr_ptr + 1;
                 end
             end
+            
+            // Gradient Descent Write Back
+            // This is complex. We write back the updated value.
+            // Requirement 2 implies we shouldn't have multi-port writes.
+            // But we are emulating behavior. 
+            // We will write if any done signal is high.
+            // Since ptr_grad_write is shared, we assume all lanes finish together?
+            // The logic below assumes all lanes write to the same ROW.
+            for (int k=0; k<N; k++) begin
+                if (grad_descent_done_out[k]) begin
+                    ub_memory[ptr_grad_write][k] <= value_updated_out[k];
+                end
+            end
+            if (grad_descent_done_out != 0) begin
+                 ptr_grad_write <= ptr_grad_write + 1;
+            end
 
-            // READING LOGIC (for input from UB to left side of systolic array)
-            if (rd_input_time_counter + 1 < rd_input_row_size + rd_input_col_size) begin
-                if(rd_input_transpose) begin
-                    // For transposed matrices (for loop should increment)
-                    for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                        if(rd_input_time_counter >= i && rd_input_time_counter < rd_input_row_size + i && i < rd_input_col_size) begin 
-                            ub_rd_input_valid_out[i] <= 1'b1;
-                            ub_rd_input_data_out[i] <= ub_memory[rd_input_ptr];
-                            rd_input_ptr = rd_input_ptr + 1;            // I should get rid of this (not good to mix non blocking and blocking assignments) but it works for now
-                        end else begin 
-                            ub_rd_input_valid_out[i] <= 1'b0;
-                            ub_rd_input_data_out[i] <= '0;
-                        end
-                    end
+
+            // ==================
+            // READ LOGIC (Streaming)
+            // ==================
+
+            // 0: Input Stream
+            if (active_input) begin
+                if (cnt_input > 0) begin
+                    ub_rd_input_data_out <= ub_memory[ptr_input];
+                    ub_rd_input_valid_out <= 1;
+                    ptr_input <= ptr_input + 1;
+                    cnt_input <= cnt_input - 1;
                 end else begin
-                    // For untransposed matrices (for loop should decrement)
-                    for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                        if(rd_input_time_counter >= i && rd_input_time_counter < rd_input_row_size + i && i < rd_input_col_size) begin 
-                            ub_rd_input_valid_out[i] <= 1'b1;
-                            ub_rd_input_data_out[i] <= ub_memory[rd_input_ptr];
-                            rd_input_ptr = rd_input_ptr + 1;            // I should get rid of this (not good to mix non blocking and blocking assignments) but it works for now    
-                        end else begin 
-                            ub_rd_input_valid_out[i] <= 1'b0;
-                            ub_rd_input_data_out[i] <= '0;
-                        end
-                    end
+                    active_input <= 0;
+                    ub_rd_input_valid_out <= 0;
                 end
-                rd_input_time_counter <= rd_input_time_counter + 1;
-            end else begin 
-                rd_input_ptr <= 0;
-                rd_input_row_size <= 0;
-                rd_input_col_size <= 0;
-                rd_input_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    ub_rd_input_valid_out[i] <= 1'b0;
-                    ub_rd_input_data_out[i] <= '0;
-                end
+            end else begin
+                 ub_rd_input_valid_out <= 0;
             end
 
-            // READING LOGIC (for weights from UB to top of systolic array)
-            if (rd_weight_time_counter + 1 < rd_weight_row_size + rd_weight_col_size) begin
-                if(rd_weight_transpose) begin
-                    // For transposed matrices (for loop should increment)
-                    for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                        if(rd_weight_time_counter >= i && rd_weight_time_counter < rd_weight_row_size + i && i < rd_weight_col_size) begin
-                            ub_rd_weight_valid_out[i] <= 1'b1;
-                            ub_rd_weight_data_out[i] <= ub_memory[rd_weight_ptr];
-                            rd_weight_ptr = rd_weight_ptr + rd_weight_skip_size;
-                        end else begin
-                            ub_rd_weight_valid_out[i] <= 0;
-                            ub_rd_weight_data_out[i] <= '0;
-                        end
-                    end
-                    rd_weight_ptr = rd_weight_ptr - rd_weight_skip_size - 1;
+            // 1: Weight Stream
+            if (active_weight) begin
+                if (cnt_weight > 0) begin
+                    ub_rd_weight_data_out <= ub_memory[ptr_weight];
+                    ub_rd_weight_valid_out <= 1;
+                    ptr_weight <= ptr_weight + 1;
+                    cnt_weight <= cnt_weight - 1;
                 end else begin
-                    // For untransposed matrices (for loop should decrement)
-                    for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                        if(rd_weight_time_counter >= i && rd_weight_time_counter < rd_weight_row_size + i && i < rd_weight_col_size) begin
-                            ub_rd_weight_valid_out[i] <= 1'b1;
-                            ub_rd_weight_data_out[i] <= ub_memory[rd_weight_ptr];
-                            rd_weight_ptr = rd_weight_ptr - rd_weight_skip_size;
-                        end else begin
-                            ub_rd_weight_valid_out[i] <= 0;
-                            ub_rd_weight_data_out[i] <= '0;
-                        end
-                    end
-                    rd_weight_ptr = rd_weight_ptr + rd_weight_skip_size + 1;
+                    active_weight <= 0;
+                    ub_rd_weight_valid_out <= 0;
                 end
-                rd_weight_time_counter <= rd_weight_time_counter + 1;
             end else begin
-                rd_weight_ptr <= 0;
-                rd_weight_row_size <= 0;
-                rd_weight_col_size <= 0;
-                rd_weight_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    ub_rd_weight_valid_out[i] <= 0;
-                    ub_rd_weight_data_out[i] <= '0;
+                ub_rd_weight_valid_out <= 0;
+            end
+
+            // 2: Bias Stream
+            if (active_bias) begin
+                if (cnt_bias > 0) begin
+                    ub_rd_bias_data_out <= ub_memory[ptr_bias];
+                    ptr_bias <= ptr_bias + 1;
+                    cnt_bias <= cnt_bias - 1;
+                end else begin
+                    active_bias <= 0;
                 end
             end
 
-            // READING LOGIC (for bias inputs from UB to bias modules in VPU)
-            if (rd_bias_time_counter + 1 < rd_bias_row_size + rd_bias_col_size) begin
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    if(rd_bias_time_counter >= i && rd_bias_time_counter < rd_bias_row_size + i && i < rd_bias_col_size) begin
-                        ub_rd_bias_data_out[i] <= ub_memory[rd_bias_ptr + i];
-                    end else begin
-                        ub_rd_bias_data_out[i] <= '0;
-                    end
-                end
-                rd_bias_time_counter <= rd_bias_time_counter + 1;
-            end else begin
-                rd_bias_ptr <= 0;
-                rd_bias_row_size <= 0;
-                rd_bias_col_size <= 0;
-                rd_bias_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    ub_rd_bias_data_out[i] <= '0;
+            // 3: Y Stream
+            if (active_Y) begin
+                if (cnt_Y > 0) begin
+                    ub_rd_Y_data_out <= ub_memory[ptr_Y];
+                    ptr_Y <= ptr_Y + 1;
+                    cnt_Y <= cnt_Y - 1;
+                end else begin
+                    active_Y <= 0;
                 end
             end
 
-            // READING LOGIC (for Y inputs from UB to loss modules in VPU)
-            if (rd_Y_time_counter + 1 < rd_Y_row_size + rd_Y_col_size) begin
-                for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                    if(rd_Y_time_counter >= i && rd_Y_time_counter < rd_Y_row_size + i && i < rd_Y_col_size) begin
-                        ub_rd_Y_data_out[i] <= ub_memory[rd_Y_ptr];
-                        rd_Y_ptr = rd_Y_ptr + 1;
-                    end else begin
-                        ub_rd_Y_data_out[i] <= '0;
-                    end
+            // 4: H Stream
+            if (active_H) begin
+                if (cnt_H > 0) begin
+                    ub_rd_H_data_out <= ub_memory[ptr_H];
+                    ptr_H <= ptr_H + 1;
+                    cnt_H <= cnt_H - 1;
+                end else begin
+                    active_H <= 0;
                 end
-                rd_Y_time_counter <= rd_Y_time_counter + 1;
-            end else begin
-                rd_Y_ptr <= 0;
-                rd_Y_row_size <= 0;
-                rd_Y_col_size <= 0;
-                rd_Y_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    ub_rd_Y_data_out[i] <= '0;
+            end
+            
+            // 5/6: Gradient Read Stream
+            if (active_grad_bias) begin
+                if (cnt_grad_bias > 0) begin
+                    value_old_in <= ub_memory[ptr_grad_bias];
+                    ptr_grad_bias <= ptr_grad_bias + 1;
+                    cnt_grad_bias <= cnt_grad_bias - 1;
+                end else begin
+                    active_grad_bias <= 0;
+                end
+            end else if (active_grad_weight) begin
+                 if (cnt_grad_weight > 0) begin
+                    value_old_in <= ub_memory[ptr_grad_weight];
+                    ptr_grad_weight <= ptr_grad_weight + 1;
+                    cnt_grad_weight <= cnt_grad_weight - 1;
+                end else begin
+                    active_grad_weight <= 0;
                 end
             end
 
-            // READING LOGIC (for H inputs from UB to activation derivative modules in VPU)
-            if (rd_H_time_counter + 1 < rd_H_row_size + rd_H_col_size) begin
-                for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                    if(rd_H_time_counter >= i && rd_H_time_counter < rd_H_row_size + i && i < rd_H_col_size) begin
-                        ub_rd_H_data_out[i] <= ub_memory[rd_H_ptr];
-                        rd_H_ptr = rd_H_ptr + 1;
-                    end else begin
-                        ub_rd_H_data_out[i] <= '0;
-                    end
-                end
-                rd_H_time_counter <= rd_H_time_counter + 1;
-            end else begin
-                rd_H_ptr <= 0;
-                rd_H_row_size <= 0;
-                rd_H_col_size <= 0;
-                rd_H_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    ub_rd_H_data_out[i] <= '0;
-                end
-            end
-
-            // READING LOGIC (for bias and weight gradient descent inputs from UB to gradient descent modules)
-            if (rd_grad_bias_time_counter + 1 < rd_grad_bias_row_size + rd_grad_bias_col_size) begin
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    if(rd_grad_bias_time_counter >= i && rd_grad_bias_time_counter < rd_grad_bias_row_size + i && i < rd_grad_bias_col_size) begin
-                        value_old_in[i] <= ub_memory[rd_grad_bias_ptr + i];
-                    end else begin
-                        value_old_in[i] <= '0;
-                    end
-                end
-                rd_grad_bias_time_counter <= rd_grad_bias_time_counter + 1;
-            end else if (rd_grad_weight_time_counter + 1 < rd_grad_weight_row_size + rd_grad_weight_col_size) begin
-                for (int i = SYSTOLIC_ARRAY_WIDTH-1; i >= 0; i--) begin
-                    if(rd_grad_weight_time_counter >= i && rd_grad_weight_time_counter < rd_grad_weight_row_size + i && i < rd_grad_weight_col_size) begin 
-                        value_old_in[i] <= ub_memory[rd_grad_weight_ptr];
-                        rd_grad_weight_ptr = rd_grad_weight_ptr + 1;            // I should get rid of this (not good to mix non blocking and blocking assignments) but it works for now    
-                    end else begin 
-                        value_old_in[i] <= '0;
-                    end
-                end
-                rd_grad_weight_time_counter <= rd_grad_weight_time_counter + 1;
-            end else begin
-                rd_grad_bias_ptr <= 0;
-                rd_grad_bias_row_size <= 0;
-                rd_grad_bias_col_size <= 0;
-                rd_grad_bias_time_counter <= '0;
-                rd_grad_weight_ptr <= 0;
-                rd_grad_weight_row_size <= 0;
-                rd_grad_weight_col_size <= 0;
-                rd_grad_weight_time_counter <= '0;
-                for (int i = 0; i < SYSTOLIC_ARRAY_WIDTH; i++) begin
-                    value_old_in[i] <= '0;
-                end
-            end
         end
     end
+
 endmodule
