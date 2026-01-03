@@ -16,6 +16,12 @@ export LIBPYTHON_LOC=$(shell /home/firatkizilboga/.local/bin/cocotb-config --lib
 export PYTHONPATH := test:$(PYTHONPATH)
 export PYGPI_PYTHON_BIN=$(shell which python3)
 
+# Array size parameter (default: 2)
+# Usage: make test_int8_e2e N=4
+N ?= 2
+export TPU_ARRAY_SIZE=$(N)
+IVERILOG_DEFINES = -DTPU_ARRAY_SIZE=$(N)
+
 #=============== MODIFY BELOW ======================
 # ********** IF YOU HAVE A NEW VERILOG FILE, ADD IT TO THE SOURCES VARIABLE
 SOURCES = src/pe.sv \
@@ -78,16 +84,18 @@ test_gradient_descent: $(SIM_BUILD_DIR)
 	mv gradient_descent.vcd waveforms/ 2>/dev/null || true
 
 test_int8_e2e: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
+	@echo "Building TPU with N=$(N)..."
+	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(IVERILOG_DEFINES) $(SOURCES) test/dump_tpu.sv
 	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_int8_e2e $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
 	! grep failure results.xml
-	mv tpu.vcd waveforms/int8_e2e.vcd 2>/dev/null || true
+	mv tpu.vcd waveforms/int8_e2e_n$(N).vcd 2>/dev/null || true
 
 test_int4_e2e: $(SIM_BUILD_DIR)
-	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
+	@echo "Building TPU with N=$(N)..."
+	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(IVERILOG_DEFINES) $(SOURCES) test/dump_tpu.sv
 	PYTHONOPTIMIZE=$(NOASSERT) COCOTB_TEST_MODULES=test_int4_e2e $(VVP) -M $(COCOTB_LIBS) -m libcocotbvpi_icarus $(SIM_VVP)
 	! grep failure results.xml
-	mv tpu.vcd waveforms/int4_e2e.vcd 2>/dev/null || true
+	mv tpu.vcd waveforms/int4_e2e_n$(N).vcd 2>/dev/null || true
 
 test_multi_precision: $(SIM_BUILD_DIR)
 	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
@@ -96,6 +104,18 @@ test_multi_precision: $(SIM_BUILD_DIR)
 	mv tpu.vcd waveforms/multi_precision.vcd 2>/dev/null || true
 
 test_all: test_pe test_systolic test_unified_buffer test_vpu test_tpu test_gradient_descent test_multi_precision test_int8_e2e test_int4_e2e
+
+# Run INT8 E2E test for multiple array sizes
+test_scaling:
+	@echo "=== Testing N=2 ==="
+	$(MAKE) test_int8_e2e N=2
+	@echo "=== Testing N=4 ==="
+	$(MAKE) test_int8_e2e N=4
+	@echo "=== Testing N=6 ==="
+	$(MAKE) test_int8_e2e N=6
+	@echo "=== Testing N=8 ==="
+	$(MAKE) test_int8_e2e N=8
+	@echo "=== All scaling tests passed! ==="
 
 
 # ============ DO NOT MODIFY BELOW THIS LINE ============== 

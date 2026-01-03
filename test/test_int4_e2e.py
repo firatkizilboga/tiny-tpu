@@ -2,17 +2,21 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, ReadOnly
 import numpy as np
+import os
 from test_utils import PackedArrayDriver, read_packed_data
 
 """
 INT4 Packed E2E Test for TinyTPU.
 
-This test mimics test_tpu.py but uses INT4 packed mode (sys_mode=3).
+This test uses INT4 packed mode (sys_mode=3).
 Each 16-bit word holds four INT4 values: (v3, v2, v1, v0).
 The PE computes: dot(input_vec, weight_vec) for 4 elements.
 
-We do a 50x2 input * 2x2 weight matrix multiply.
+Array size N is configurable via TPU_ARRAY_SIZE environment variable.
 """
+
+# Read array size from environment (set by Makefile)
+N = int(os.environ.get('TPU_ARRAY_SIZE', '2'))
 
 def pack_int4(v3, v2, v1, v0):
     """Pack four signed INT4 values into one unsigned 16-bit word."""
@@ -40,8 +44,13 @@ def swar_dot(a_packed, w_packed):
 def compute_expected_outputs(A, W):
     """
     Compute expected systolic array outputs for INT4 packed mode.
+    Works for any NxN systolic array.
+    A: M x N matrix of packed INT4 values
+    W: N x N matrix of packed INT4 values
+    Returns: list of N-element tuples (one result per column)
     """
     num_input_rows = len(A)
+    num_cols = len(W[0])  # N columns
     results = []
     
     def pe_int4_compute(a_packed, w_packed):
@@ -56,13 +65,14 @@ def compute_expected_outputs(A, W):
         return low16
     
     for t in range(num_input_rows):
-        # C[t][0] = A[t][0]*W[0][0] + A[t][1]*W[1][0]
-        col0 = pe_int4_compute(A[t][0], W[0][0]) + pe_int4_compute(A[t][1], W[1][0])
-        
-        # C[t][1] = A[t][0]*W[0][1] + A[t][1]*W[1][1]
-        col1 = pe_int4_compute(A[t][0], W[0][1]) + pe_int4_compute(A[t][1], W[1][1])
-        
-        results.append((requant_16(col0), requant_16(col1)))
+        row_results = []
+        for col in range(num_cols):
+            # C[t][col] = sum over k of A[t][k] * W[k][col]
+            psum = 0
+            for k in range(len(W)):  # N rows of W
+                psum += pe_int4_compute(A[t][k], W[k][col])
+            row_results.append(requant_16(psum))
+        results.append(tuple(row_results))
     
     return results
 
@@ -93,25 +103,27 @@ async def wait_for_outputs(dut, num_expected, extra_cycles=20):
 
 @cocotb.test()
 async def test_int4_e2e(dut):
-    """INT4 Packed Mode E2E Test - Full Scale Random Test"""
+    """INT4 Packed Mode E2E Test - Full Scale Random Test for NxN Array"""
     
-    # Configuration - 50 rows to simulate larger matrix operations
-    NUM_INPUT_ROWS = 50
+    # Configuration
+    NUM_INPUT_ROWS = 50  # Number of rows to test
     SEED = 42
+    
+    dut._log.info(f"=== INT4 E2E Test with N={N} ===")
     
     # Create clock
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
-    # Initialize packed array drivers
-    ub_wr_host_data_drv = PackedArrayDriver(dut.ub_wr_host_data_in, 16, 2)
-    ub_wr_host_valid_drv = PackedArrayDriver(dut.ub_wr_host_valid_in, 1, 2)
+    # Initialize packed array drivers for N lanes
+    ub_wr_host_data_drv = PackedArrayDriver(dut.ub_wr_host_data_in, 16, N)
+    ub_wr_host_valid_drv = PackedArrayDriver(dut.ub_wr_host_valid_in, 1, N)
     
     # Reset
     dut.rst.value = 1
-    dut.sys_mode.value = 3  # INT4 Packed Mode! (3)
-    ub_wr_host_data_drv.set_all([0, 0])
-    ub_wr_host_valid_drv.set_all([0, 0])
+    dut.sys_mode.value = 3  # INT4 Packed Mode!
+    ub_wr_host_data_drv.set_all([0] * N)
+    ub_wr_host_valid_drv.set_all([0] * N)
     dut.ub_rd_start_in.value = 0
     dut.ub_rd_transpose.value = 0
     dut.ub_ptr_select.value = 0
@@ -129,33 +141,32 @@ async def test_int4_e2e(dut):
     await RisingEdge(dut.clk)
     
     # Define test data (Full Range Random Test)
-    A = generate_random_packed_matrix(NUM_INPUT_ROWS, 2, range_min=-8, range_max=7, seed=SEED)
-    W = generate_random_packed_matrix(2, 2, range_min=-8, range_max=7, seed=SEED + 1)
+    # A is NUM_INPUT_ROWS x N, W is N x N
+    A = generate_random_packed_matrix(NUM_INPUT_ROWS, N, range_min=-8, range_max=7, seed=SEED)
+    W = generate_random_packed_matrix(N, N, range_min=-8, range_max=7, seed=SEED + 1)
         
     # Log the generated data
-    dut._log.info(f"Input A ({len(A)} rows):")
+    dut._log.info(f"Input A ({len(A)} rows x {N} cols):")
     for i, row in enumerate(A[:4]):  # Show first 4 rows
-        v3_0, v2_0, v1_0, v0_0 = unpack_int4(row[0])
-        v3_1, v2_1, v1_1, v0_1 = unpack_int4(row[1])
-        dut._log.info(f"  A[{i}] = [({v3_0},{v2_0},{v1_0},{v0_0}), ({v3_1},{v2_1},{v1_1},{v0_1})")
+        row_str = ", ".join([str(unpack_int4(v)) for v in row])
+        dut._log.info(f"  A[{i}] = [{row_str}]")
     if len(A) > 4:
         dut._log.info(f"  ... ({len(A) - 4} more rows)")
     
-    dut._log.info(f"Weight W:")
+    dut._log.info(f"Weight W ({N}x{N}):")
     for i, row in enumerate(W):
-        v3_0, v2_0, v1_0, v0_0 = unpack_int4(row[0])
-        v3_1, v2_1, v1_1, v0_1 = unpack_int4(row[1])
-        dut._log.info(f"  W[{i}] = [({v3_0},{v2_0},{v1_0},{v0_0}), ({v3_1},{v2_1},{v1_1},{v0_1})")
+        row_str = ", ".join([str(unpack_int4(v)) for v in row])
+        dut._log.info(f"  W[{i}] = [{row_str}]")
     
     # Load A into UB (wide memory - all columns at once)
     dut._log.info(f"Loading {len(A)} input rows to UB...")
     
     for i, row in enumerate(A):
-        ub_wr_host_data_drv.set_all([row[0], row[1]])
-        ub_wr_host_valid_drv.set_all([1, 1])
+        ub_wr_host_data_drv.set_all(row)
+        ub_wr_host_valid_drv.set_all([1] * N)
         await RisingEdge(dut.clk)
     
-    ub_wr_host_valid_drv.set_all([0, 0])
+    ub_wr_host_valid_drv.set_all([0] * N)
     
     # Calculate where W starts in UB (wide memory: 1 address per row)
     w_start_addr = len(A)
@@ -166,19 +177,17 @@ async def test_int4_e2e(dut):
     dut._log.info(f"Loading weights to UB at addr {w_start_addr} (REVERSED ROW ORDER)...")
     W_reversed = W[::-1]
     for i, row in enumerate(W_reversed):
-        # We assume W has 2 rows [0, 1]. i=0 writes W[1]. i=1 writes W[0].
-        # Log which ORIGINAL row we are writing helps debug
         orig_idx = len(W) - 1 - i 
-        dut._log.info(f"Writing W[{orig_idx}] (Rev[{i}]): packed=[0x{row[0]:04x}, 0x{row[1]:04x}]")
-        ub_wr_host_data_drv.set_all([row[0], row[1]])
-        ub_wr_host_valid_drv.set_all([1, 1])
+        dut._log.info(f"Writing W[{orig_idx}] (Rev[{i}])")
+        ub_wr_host_data_drv.set_all(row)
+        ub_wr_host_valid_drv.set_all([1] * N)
         await RisingEdge(dut.clk)
         
         # Pulse valid low to ensure clean write cycles
-        ub_wr_host_valid_drv.set_all([0, 0])
+        ub_wr_host_valid_drv.set_all([0] * N)
         await RisingEdge(dut.clk)
     
-    ub_wr_host_valid_drv.set_all([0, 0])
+    ub_wr_host_valid_drv.set_all([0] * N)
     await RisingEdge(dut.clk)
     
     # Load W into systolic array (Software transpose/reverse done during loading)
@@ -186,8 +195,8 @@ async def test_int4_e2e(dut):
     dut.ub_rd_transpose.value = 0 # Ignored by hardware, but 0 is safe default
     dut.ub_ptr_select.value = 1
     dut.ub_rd_addr_in.value = w_start_addr  # W starts after A
-    dut.ub_rd_row_size.value = len(W) # Ignored by hardware?
-    dut.ub_rd_col_size.value = len(W)  # Number of rows of weights to read
+    dut.ub_rd_row_size.value = N  # Number of weight rows
+    dut.ub_rd_col_size.value = N  # Number of rows of weights to read (for PE enable)
     await RisingEdge(dut.clk)
     
     dut.ub_rd_start_in.value = 0
@@ -196,13 +205,15 @@ async def test_int4_e2e(dut):
     dut.ub_rd_addr_in.value = 0
     dut.ub_rd_row_size.value = 0
     dut.ub_rd_col_size.value = 0
-    await RisingEdge(dut.clk)
+    
+    # Wait for weights to propagate through all N rows of the systolic array
+    # UB streams N weights over N cycles, then they need N-1 more cycles to reach bottom row
+    await ClockCycles(dut.clk, 2 * N - 1)
     
     # Stream A into systolic, switch weights
     
-    # Setup monitor to capture outputs
-    captured_1 = []
-    captured_2 = []
+    # Setup monitor to capture outputs for all N channels
+    captured = [[] for _ in range(N)]
     
     async def monitor_outputs():
         while True:
@@ -213,12 +224,10 @@ async def test_int4_e2e(dut):
             except ValueError:
                 valid_val = 0
             
-            if (valid_val >> 0) & 1:
-                val = read_packed_data(dut.vpu_inst.vpu_data_out, 0, 16, signed=True)
-                captured_1.append(val)
-            if (valid_val >> 1) & 1:
-                val = read_packed_data(dut.vpu_inst.vpu_data_out, 1, 16, signed=True)
-                captured_2.append(val)
+            for ch in range(N):
+                if (valid_val >> ch) & 1:
+                    val = read_packed_data(dut.vpu_inst.vpu_data_out, ch, 16, signed=True)
+                    captured[ch].append(val)
     
     monitor_task = cocotb.start_soon(monitor_outputs())
     
@@ -236,68 +245,62 @@ async def test_int4_e2e(dut):
     await RisingEdge(dut.clk)
     dut.sys_switch_in.value = 0
     
-    # Wait for outputs
-    await wait_for_outputs(dut, NUM_INPUT_ROWS)
+    # Wait for outputs (need more cycles for larger arrays due to skewing)
+    await wait_for_outputs(dut, NUM_INPUT_ROWS, extra_cycles=20 + N * 2)
     monitor_task.cancel()
     
     # Compute Golden Reference
     dut._log.info("Computing expected results using Python golden model...")
     expected_results = compute_expected_outputs(A, W)
     
-    # Separate the list of tuples [(col0, col1), ...] into two lists
-    expected_col_0 = [res[0] for res in expected_results]
-    expected_col_1 = [res[1] for res in expected_results]
+    # Separate the list of tuples into per-column lists
+    expected_cols = [[res[col] for res in expected_results] for col in range(N)]
     
-    dut._log.info(f"Golden Col 0 (first 5): {expected_col_0[:5]}...")
-    dut._log.info(f"Golden Col 1 (first 5): {expected_col_1[:5]}...")
+    dut._log.info(f"Golden Col 0 (first 5): {expected_cols[0][:5]}...")
     
     # Verify Results
-    dut._log.info(f"Captured Output 1 ({len(captured_1)} values): {captured_1[:5]}...")
-    dut._log.info(f"Captured Output 2 ({len(captured_2)} values): {captured_2[:5]}...")
+    for ch in range(N):
+        dut._log.info(f"Captured Channel {ch} ({len(captured[ch])} values): {captured[ch][:5]}...")
     
-    # Verify we got outputs on both channels
-    assert len(captured_1) > 0, "No outputs captured on channel 1!"
-    assert len(captured_2) > 0, "No outputs captured on channel 2!"
+    # Verify we got outputs on all channels
+    for ch in range(N):
+        assert len(captured[ch]) > 0, f"No outputs captured on channel {ch}!"
     
-    # Slice captured results to match input length (in case of pipeline latency effects)
-    valid_captured_1 = captured_1[:NUM_INPUT_ROWS]
-    valid_captured_2 = captured_2[:NUM_INPUT_ROWS]
+    # Slice captured results to match input length
+    valid_captured = [ch_data[:NUM_INPUT_ROWS] for ch_data in captured]
     
-    assert len(valid_captured_1) == NUM_INPUT_ROWS, \
-        f"Output length mismatch! Expected {NUM_INPUT_ROWS}, got {len(valid_captured_1)}"
+    for ch in range(N):
+        assert len(valid_captured[ch]) == NUM_INPUT_ROWS, \
+            f"Channel {ch} output length mismatch! Expected {NUM_INPUT_ROWS}, got {len(valid_captured[ch])}"
     
     # Bit-Perfect Verification
-    mismatches_col0 = []
-    mismatches_col1 = []
+    total_mismatches = 0
+    mismatches_by_col = []
     
-    dut._log.info("Verifying Column 0 (Channel 1) against golden model...")
-    for i, (hw, gold) in enumerate(zip(valid_captured_1, expected_col_0)):
-        if hw != gold:
-            v3_0, v2_0, v1_0, v0_0 = unpack_int4(A[i][0])
-            v3_1, v2_1, v1_1, v0_1 = unpack_int4(A[i][1])
-            mismatches_col0.append({
-                'row': i, 'hw': hw, 'gold': gold, 
-                'input': f"A[{i}]=({v3_0},{v2_0},{v1_0},{v0_0}), ({v3_1},{v2_1},{v1_1},{v0_1})"
-            })
-    
-    dut._log.info("Verifying Column 1 (Channel 2) against golden model...")
-    for i, (hw, gold) in enumerate(zip(valid_captured_2, expected_col_1)):
-        if hw != gold:
-            mismatches_col1.append({'row': i, 'hw': hw, 'gold': gold})
+    for col in range(N):
+        col_mismatches = []
+        dut._log.info(f"Verifying Column {col} against golden model...")
+        for i, (hw, gold) in enumerate(zip(valid_captured[col], expected_cols[col])):
+            if hw != gold:
+                col_mismatches.append({'row': i, 'hw': hw, 'gold': gold})
+        mismatches_by_col.append(col_mismatches)
+        total_mismatches += len(col_mismatches)
     
     # Report results
-    if mismatches_col0 or mismatches_col1:
-        dut._log.warning(f"Found {len(mismatches_col0)} Col0 mismatches, {len(mismatches_col1)} Col1 mismatches")
-        for m in mismatches_col0[:3]:  # Show first 3
-            dut._log.warning(f"  Col0 Row {m['row']}: HW={m['hw']} != Gold={m['gold']} ({m['input']})")
-        for m in mismatches_col1[:3]:
-            dut._log.warning(f"  Col1 Row {m['row']}: HW={m['hw']} != Gold={m['gold']}")
+    if total_mismatches > 0:
+        dut._log.warning(f"Found {total_mismatches} total mismatches across {N} columns")
+        for col, mismatches in enumerate(mismatches_by_col):
+            if mismatches:
+                dut._log.warning(f"  Col {col}: {len(mismatches)} mismatches")
+                for m in mismatches[:3]:  # Show first 3
+                    dut._log.warning(f"    Row {m['row']}: HW={m['hw']} != Gold={m['gold']}")
         
-        # FAIL HARD on any mismatch - no fallback!
-        assert False, f"BIT-PERFECT VERIFICATION FAILED! {len(mismatches_col0)} Col0 errors, {len(mismatches_col1)} Col1 errors"
+        # FAIL HARD on any mismatch
+        assert False, f"BIT-PERFECT VERIFICATION FAILED! {total_mismatches} total errors"
     else:
         dut._log.info(f"✅ INT4 E2E Test PASSED - BIT-PERFECT MATCH!")
     
-    dut._log.info(f"  Matrix size: {NUM_INPUT_ROWS}x2 inputs, 2x2 random weights")
-    dut._log.info(f"  Channel 1: {len(captured_1)} outputs, {len(set(captured_1))} unique")
-    dut._log.info(f"  Channel 2: {len(captured_2)} outputs, {len(set(captured_2))} unique")
+    dut._log.info(f"  Array Size: N={N}")
+    dut._log.info(f"  Matrix size: {NUM_INPUT_ROWS}x{N} inputs, {N}x{N} weights")
+    for ch in range(N):
+        dut._log.info(f"  Channel {ch}: {len(captured[ch])} outputs, {len(set(captured[ch]))} unique")

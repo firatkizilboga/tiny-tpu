@@ -2,7 +2,11 @@
 `default_nettype none
 
 module tpu #(
+`ifdef TPU_ARRAY_SIZE
+    parameter int SYSTOLIC_ARRAY_WIDTH = `TPU_ARRAY_SIZE
+`else
     parameter int SYSTOLIC_ARRAY_WIDTH = 2
+`endif
 )(
     input logic clk,
     input logic rst,

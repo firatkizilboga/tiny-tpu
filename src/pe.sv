@@ -138,11 +138,12 @@ module pe #(
             end
 
             // Weight register updates - only on clock edges
+            // Always pass weights through to allow propagation down columns
+            pe_weight_out <= pe_weight_in;
+            
+            // Only latch weight into inactive register when accept_w is high
             if (pe_accept_w_in) begin
                 weight_reg_inactive <= pe_weight_in;
-                pe_weight_out <= pe_weight_in;
-            end else begin
-                pe_weight_out <= 0;
             end
 
             if (pe_valid_in) begin

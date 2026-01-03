@@ -251,4 +251,5 @@ async def test_vector_unit(dut):
     valid_in_drv.set(1, 1)
 
 
-    await ClockCycles(dut.clk, 10)
+    await ClockCycles(dmv tpu.vcd waveforms/int8_e2e_n2.vcd 2>/dev/null || true
+    ut.clk, 10)
